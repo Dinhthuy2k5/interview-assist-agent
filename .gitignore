@@ -7,25 +7,25 @@ venv/
 .pytest_cache/
 .ruff_cache/
 *.db
- 
+
 # Node / Frontend
 node_modules/
 dist/
 build/
 .vite/
- 
+
 # Env & secrets
 .env
 .env.*
 !.env.example
- 
+
 # Docker
 *.log
- 
+
 # OS / Editor
 .DS_Store
 .vscode/
 .idea/
- 
+
 # Alembic (giữ script, bỏ cache)
 backend/alembic/__pycache__/
