@@ -10,8 +10,6 @@ class Base(DeclarativeBase):
     """Base class cho toàn bộ model. Mọi bảng dùng UUID làm khóa chính
     (an toàn hơn incremental ID khi expose qua API — tránh lộ thông tin số lượng record)."""
 
-    pass
-
 
 class TimestampMixin:
     """Mixin thêm created_at/updated_at cho mọi bảng cần audit trail."""
