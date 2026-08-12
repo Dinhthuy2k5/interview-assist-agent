@@ -26,8 +26,8 @@ services:
       MINIO_ROOT_USER: changeme
       MINIO_ROOT_PASSWORD: changeme
     ports:
-      - "9000:9000" # API
-      - "9001:9001" # Console
+      - "9000:9000"
+      - "9001:9001"
     volumes:
       - minio_data:/data
     healthcheck:
