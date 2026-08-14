@@ -8,7 +8,7 @@ quyền ghi vào bảng `Decision`** — chỉ Decision Service (thao tác qua U
 mới ghi được. Đây là cách enforce HITL (Human-In-The-Loop) ở tầng kiến trúc, không
 chỉ ở tầng convention hay tài liệu.
 
-\`\`\`mermaid
+```mermaid
 flowchart TB
     subgraph FE["Frontend (Web App)"]
         HR[HR Dashboard]
@@ -51,11 +51,11 @@ flowchart TB
 
     style DEC fill:#2d5016,color:#fff
     style AG fill:#5c1a1a,color:#fff
-\`\`\`
+```
 
 ## Luồng dữ liệu chính (happy path)
 
-\`\`\`mermaid
+```mermaid
 sequenceDiagram
     participant HR as HR Admin
     participant JDP as JD Parse
@@ -84,7 +84,7 @@ sequenceDiagram
 
     Council->>DEC: Xem report + note gốc, ra quyết định cuối
     DEC->>DEC: Ghi final_decision (chỉ role hội đồng mới gọi được)
-\`\`\`
+```
 
 ## Vì sao tách Aggregation Report và Decision thành 2 bảng riêng
 
