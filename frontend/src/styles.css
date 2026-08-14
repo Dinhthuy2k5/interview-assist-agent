@@ -376,3 +376,224 @@ code {
   color: var(--color-ink-muted);
   margin: 0.5rem 0 0;
 }
+
+/* --- Framework list display (Sprint 2 - trọng số & rubric dễ đọc hơn) --- */
+.framework-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.framework-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.framework-card-name {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 0.3rem;
+}
+
+.framework-card-desc {
+  font-size: 0.85rem;
+  color: var(--color-ink-muted);
+  margin: 0;
+  max-width: 52ch;
+}
+
+.criteria-count-pill {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.criterion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.criterion-block {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  background: var(--color-bg);
+}
+
+.criterion-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.criterion-block-name {
+  font-weight: 600;
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+.weight-pill {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  flex-shrink: 0;
+}
+
+.weight-bar-track {
+  height: 4px;
+  background: var(--color-border);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 0.65rem;
+}
+
+.weight-bar-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.rubric-toggle {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--color-primary);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rubric-toggle:hover {
+  text-decoration: underline;
+}
+
+.rubric-toggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.rubric-table {
+  margin-top: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  border-top: 1px solid var(--color-border);
+  padding-top: 0.65rem;
+}
+
+.rubric-row {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 0.55rem;
+  align-items: baseline;
+}
+
+.rubric-level {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+}
+
+.rubric-text {
+  font-size: 0.82rem;
+  color: var(--color-ink);
+  line-height: 1.5;
+}
+
+/* --- Top nav tabs (App.tsx) --- */
+.topbar-nav {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.nav-link {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 0.5rem 0.9rem;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+}
+
+.nav-link:hover {
+  background: var(--color-bg);
+}
+
+.nav-link.is-active {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.nav-link:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* --- Dynamic criterion rows (Framework create form) --- */
+.criterion-row {
+  display: grid;
+  grid-template-columns: 2fr 90px 3fr auto;
+  gap: 0.5rem;
+  align-items: start;
+  margin-bottom: 0.6rem;
+}
+
+.criterion-row input,
+.criterion-row textarea {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+.btn-icon-remove {
+  appearance: none;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: 6px;
+  color: var(--color-red);
+  cursor: pointer;
+  width: 34px;
+  height: 34px;
+  font-size: 0.85rem;
+}
+
+.btn-icon-remove:disabled {
+  color: var(--color-border);
+  cursor: not-allowed;
+}

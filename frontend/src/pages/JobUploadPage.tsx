@@ -58,120 +58,110 @@ export default function JobUploadPage() {
     const jobFramework = job ? frameworks.find((f) => f.id === job.framework_id) ?? null : null;
 
     return (
-        <div className="app-shell">
-            <header className="topbar">
-                <div>
-                    <p className="topbar-title">Interview Assist Agent</p>
-                    <p className="topbar-subtitle">Hồ sơ vị trí &amp; mô tả công việc</p>
+        <div className="page-content">
+            <h1 className="page-heading">Tải lên mô tả công việc</h1>
+            <p className="page-description">
+                Chọn khung năng lực trước, hệ thống sẽ dùng đúng bộ tiêu chí đó để sinh câu hỏi
+                phỏng vấn ở bước sau.
+            </p>
+
+            <PipelineStepper status={pipelineStatus} />
+
+            {frameworksError && <div className="notice notice-error">{frameworksError}</div>}
+
+            {!frameworksError && frameworks.length === 0 && (
+                <div className="notice notice-warning">
+                    Chưa có Competency Framework nào. Tạo một framework qua{" "}
+                    <code>POST /frameworks</code> (Swagger UI ở localhost:8000/docs), rồi tải lại
+                    trang này.
                 </div>
-                <span className="auth-badge">Đăng nhập &amp; phân quyền: chưa cấu hình (Sprint 6)</span>
-            </header>
+            )}
 
-            <div className="page-content">
-                <h1 className="page-heading">Tải lên mô tả công việc</h1>
-                <p className="page-description">
-                    Chọn khung năng lực trước, hệ thống sẽ dùng đúng bộ tiêu chí đó để sinh câu hỏi
-                    phỏng vấn ở bước sau.
-                </p>
-
-                <PipelineStepper status={pipelineStatus} />
-
-                {frameworksError && <div className="notice notice-error">{frameworksError}</div>}
-
-                {!frameworksError && frameworks.length === 0 && (
-                    <div className="notice notice-warning">
-                        Chưa có Competency Framework nào. Tạo một framework qua{" "}
-                        <code>POST /frameworks</code> (Swagger UI ở localhost:8000/docs), rồi tải lại
-                        trang này.
+            <div className="card">
+                <form onSubmit={handleSubmit}>
+                    <div className="field">
+                        <label htmlFor="title">Tên vị trí</label>
+                        <input
+                            id="title"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            placeholder="VD: Backend Engineer"
+                            required
+                        />
                     </div>
-                )}
 
-                <div className="card">
-                    <form onSubmit={handleSubmit}>
-                        <div className="field">
-                            <label htmlFor="title">Tên vị trí</label>
+                    <div className="field">
+                        <label htmlFor="level">Cấp độ</label>
+                        <select id="level" value={level} onChange={(e) => setLevel(e.target.value)}>
+                            {LEVELS.map((l) => (
+                                <option key={l} value={l}>
+                                    {l}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="field">
+                        <label htmlFor="framework">Khung năng lực</label>
+                        <select
+                            id="framework"
+                            value={frameworkId}
+                            onChange={(e) => setFrameworkId(e.target.value)}
+                            required
+                            disabled={frameworks.length === 0}
+                        >
+                            {frameworks.map((f) => (
+                                <option key={f.id} value={f.id}>
+                                    {f.name}
+                                </option>
+                            ))}
+                        </select>
+                        <p className="field-hint">Quyết định bộ tiêu chí dùng để sinh câu hỏi sau này.</p>
+                    </div>
+
+                    <div className="field">
+                        <label htmlFor="createdBy">Người tạo</label>
+                        <input
+                            id="createdBy"
+                            value={createdBy}
+                            onChange={(e) => setCreatedBy(e.target.value)}
+                            placeholder="Tên hoặc email của bạn"
+                            required
+                        />
+                    </div>
+
+                    <div className="field">
+                        <label htmlFor="file">File JD (.pdf hoặc .docx)</label>
+                        <div className="file-input">
                             <input
-                                id="title"
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                placeholder="VD: Backend Engineer"
+                                id="file"
+                                type="file"
+                                accept=".pdf,.docx"
+                                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                                 required
                             />
                         </div>
+                    </div>
 
-                        <div className="field">
-                            <label htmlFor="level">Cấp độ</label>
-                            <select id="level" value={level} onChange={(e) => setLevel(e.target.value)}>
-                                {LEVELS.map((l) => (
-                                    <option key={l} value={l}>
-                                        {l}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                    <button className="btn" type="submit" disabled={submitting || frameworks.length === 0}>
+                        {submitting ? "Đang tải lên..." : "Tải lên"}
+                    </button>
+                </form>
 
-                        <div className="field">
-                            <label htmlFor="framework">Khung năng lực</label>
-                            <select
-                                id="framework"
-                                value={frameworkId}
-                                onChange={(e) => setFrameworkId(e.target.value)}
-                                required
-                                disabled={frameworks.length === 0}
-                            >
-                                {frameworks.map((f) => (
-                                    <option key={f.id} value={f.id}>
-                                        {f.name}
-                                    </option>
-                                ))}
-                            </select>
-                            <p className="field-hint">Quyết định bộ tiêu chí dùng để sinh câu hỏi sau này.</p>
-                        </div>
-
-                        <div className="field">
-                            <label htmlFor="createdBy">Người tạo</label>
-                            <input
-                                id="createdBy"
-                                value={createdBy}
-                                onChange={(e) => setCreatedBy(e.target.value)}
-                                placeholder="Tên hoặc email của bạn"
-                                required
-                            />
-                        </div>
-
-                        <div className="field">
-                            <label htmlFor="file">File JD (.pdf hoặc .docx)</label>
-                            <div className="file-input">
-                                <input
-                                    id="file"
-                                    type="file"
-                                    accept=".pdf,.docx"
-                                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                                    required
-                                />
-                            </div>
-                        </div>
-
-                        <button className="btn" type="submit" disabled={submitting || frameworks.length === 0}>
-                            {submitting ? "Đang tải lên..." : "Tải lên"}
-                        </button>
-                    </form>
-
-                    {submitError && (
-                        <div className="notice notice-error" style={{ marginTop: "1rem", marginBottom: 0 }}>
-                            {submitError}
-                        </div>
-                    )}
-                </div>
-
-                {job && (
-                    <div style={{ marginTop: "1.25rem" }}>
-                        <JdTextReview job={job} onUpdated={setJob} />
+                {submitError && (
+                    <div className="notice notice-error" style={{ marginTop: "1rem", marginBottom: 0 }}>
+                        {submitError}
                     </div>
                 )}
-
-                {readyForQuestions && job && <QuestionGenPanel job={job} framework={jobFramework} />}
             </div>
+
+            {job && (
+                <div style={{ marginTop: "1.25rem" }}>
+                    <JdTextReview job={job} onUpdated={setJob} />
+                </div>
+            )}
+
+            {readyForQuestions && job && <QuestionGenPanel job={job} framework={jobFramework} />}
         </div>
     );
 }
