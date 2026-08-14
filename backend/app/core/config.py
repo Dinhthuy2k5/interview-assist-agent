@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     jwt_secret: str = "changeme"
     jwt_expire_minutes: int = 60
     env: str = "development"
+    llm_provider: str = "mock"   # "mock" | "anthropic" | "groq"
+    groq_api_key: str = ""
 
 
 settings = Settings()
