@@ -5,6 +5,7 @@ import { listFrameworks } from "../api/frameworks";
 import { createJob } from "../api/jobs";
 import JdTextReview from "../components/JdTextReview";
 import PipelineStepper from "../components/PipelineStepper";
+import QuestionGenPanel from "../components/QuestionGenPanel";
 
 const LEVELS = ["fresher", "junior", "senior"];
 
@@ -50,6 +51,11 @@ export default function JobUploadPage() {
     }
 
     const pipelineStatus = job ? job.jd_parse_status : "idle";
+
+    // Chỉ cho sinh câu hỏi khi JD đã có text và không còn ở trạng thái cần review -
+    // tránh sinh câu hỏi từ nội dung extract chưa chắc chắn (needs_review).
+    const readyForQuestions = job !== null && job.jd_text !== null && job.jd_parse_status !== "needs_review";
+    const jobFramework = job ? frameworks.find((f) => f.id === job.framework_id) ?? null : null;
 
     return (
         <div className="app-shell">
@@ -163,6 +169,8 @@ export default function JobUploadPage() {
                         <JdTextReview job={job} onUpdated={setJob} />
                     </div>
                 )}
+
+                {readyForQuestions && job && <QuestionGenPanel job={job} framework={jobFramework} />}
             </div>
         </div>
     );
