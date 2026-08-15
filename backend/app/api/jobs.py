@@ -3,9 +3,11 @@ import uuid
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
+from app.api.deps import require_role
 from app.core.db import get_db
 from app.core.storage import upload_file
 from app.models.job import Job
+from app.models.user import User, UserRole
 from app.schemas.job import JobResponse, JobUpdate
 from app.services.jd_parse import parse_jd_file
 
@@ -19,9 +21,9 @@ async def create_job(
     title: str = Form(...),
     level: str = Form(...),
     framework_id: uuid.UUID = Form(...),
-    created_by: str = Form(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.hr_admin)),
 ):
     if not file.filename or not file.filename.lower().endswith(ALLOWED_EXTENSIONS):
         raise HTTPException(400, f"Chỉ nhận file {ALLOWED_EXTENSIONS}")
@@ -42,7 +44,9 @@ async def create_job(
         jd_text=jd_text,
         jd_parse_status=jd_parse_status,
         framework_id=framework_id,
-        created_by=created_by,
+        # Lấy từ tài khoản đã xác thực (JWT), KHÔNG tin field client tự gửi lên -
+        # trước đây created_by là Form field tự khai, ai cũng giả mạo tên được.
+        created_by=current_user.full_name,
     )
     db.add(job)
     db.commit()
@@ -51,7 +55,13 @@ async def create_job(
 
 
 @router.get("/{job_id}", response_model=JobResponse)
-def get_job(job_id: uuid.UUID, db: Session = Depends(get_db)):
+def get_job(
+    job_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    # TODO: khi Interviewer có UI xem thông tin job trước buổi phỏng vấn
+    # (Sprint sau), nới quyền này thành require_role(hr_admin, interviewer).
+    _: User = Depends(require_role(UserRole.hr_admin)),
+):
     job = db.get(Job, job_id)
     if not job:
         raise HTTPException(404, "Job không tồn tại")
@@ -59,7 +69,12 @@ def get_job(job_id: uuid.UUID, db: Session = Depends(get_db)):
 
 
 @router.patch("/{job_id}", response_model=JobResponse)
-def update_job(job_id: uuid.UUID, payload: JobUpdate, db: Session = Depends(get_db)):
+def update_job(
+    job_id: uuid.UUID,
+    payload: JobUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_role(UserRole.hr_admin)),
+):
     """HR sửa jd_text sau khi xem needs_review. Sửa xong tự chuyển status -> parsed
     (giả định HR đã xác nhận nội dung đúng khi họ chủ động sửa)."""
     job = db.get(Job, job_id)

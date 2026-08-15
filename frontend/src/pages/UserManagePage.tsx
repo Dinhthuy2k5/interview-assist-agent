@@ -12,6 +12,7 @@ export default function UserManagePage() {
     const [email, setEmail] = useState("");
     const [fullName, setFullName] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [role, setRole] = useState<UserRole>("interviewer");
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
@@ -78,14 +79,24 @@ export default function UserManagePage() {
                     </div>
                     <div className="field">
                         <label htmlFor="user-password">Mật khẩu tạm thời</label>
-                        <input
-                            id="user-password"
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            minLength={8}
-                            required
-                        />
+                        <div className="password-field-group">
+                            <input
+                                id="user-password"
+                                type={showPassword ? "text" : "password"}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                minLength={8}
+                                required
+                            />
+                            <button
+                                type="button"
+                                className="btn-icon-toggle"
+                                onClick={() => setShowPassword((v) => !v)}
+                                aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                            >
+                                {showPassword ? "Ẩn" : "Hiện"}
+                            </button>
+                        </div>
                         <p className="field-hint">Tối thiểu 8 ký tự.</p>
                     </div>
                     <div className="field">

@@ -4,8 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
+from app.api.deps import require_role
 from app.core.db import get_db
 from app.models.competency import CompetencyFramework, Criterion
+from app.models.user import User, UserRole
 from app.schemas.competency import (
     CompetencyFrameworkCreate,
     CompetencyFrameworkResponse,
@@ -28,7 +30,11 @@ def _get_framework_or_404(framework_id: uuid.UUID, db: Session) -> CompetencyFra
 
 
 @router.post("", response_model=CompetencyFrameworkResponse, status_code=201)
-def create_framework(payload: CompetencyFrameworkCreate, db: Session = Depends(get_db)):
+def create_framework(
+    payload: CompetencyFrameworkCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_role(UserRole.hr_admin)),
+):
     framework = CompetencyFramework(name=payload.name, description=payload.description)
     framework.criteria = [
         Criterion(name=c.name, weight=c.weight, scoring_rubric=c.scoring_rubric)
@@ -41,20 +47,31 @@ def create_framework(payload: CompetencyFrameworkCreate, db: Session = Depends(g
 
 
 @router.get("", response_model=list[CompetencyFrameworkResponse])
-def list_frameworks(db: Session = Depends(get_db)):
+def list_frameworks(
+    db: Session = Depends(get_db),
+    # TODO: khi Interviewer/Council cần xem framework (Sprint sau), nới quyền này.
+    _: User = Depends(require_role(UserRole.hr_admin)),
+):
     return (
         db.query(CompetencyFramework).options(selectinload(CompetencyFramework.criteria)).all()
     )
 
 
 @router.get("/{framework_id}", response_model=CompetencyFrameworkResponse)
-def get_framework(framework_id: uuid.UUID, db: Session = Depends(get_db)):
+def get_framework(
+    framework_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_role(UserRole.hr_admin)),
+):
     return _get_framework_or_404(framework_id, db)
 
 
 @router.patch("/{framework_id}", response_model=CompetencyFrameworkResponse)
 def update_framework(
-    framework_id: uuid.UUID, payload: CompetencyFrameworkUpdate, db: Session = Depends(get_db)
+    framework_id: uuid.UUID,
+    payload: CompetencyFrameworkUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_role(UserRole.hr_admin)),
 ):
     framework = _get_framework_or_404(framework_id, db)
     if payload.name is not None:
@@ -67,7 +84,11 @@ def update_framework(
 
 
 @router.delete("/{framework_id}", status_code=204)
-def delete_framework(framework_id: uuid.UUID, db: Session = Depends(get_db)):
+def delete_framework(
+    framework_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_role(UserRole.hr_admin)),
+):
     framework = _get_framework_or_404(framework_id, db)
     # Criterion có ondelete="CASCADE" -> xoá framework tự xoá theo criteria.
     # Job.framework_id KHÔNG có CASCADE (cố ý) -> nếu có Job đang dùng framework

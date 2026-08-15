@@ -643,3 +643,36 @@ code {
 .user-table tr:last-child td {
   border-bottom: none;
 }
+
+/* --- Password show/hide toggle (User management) --- */
+.password-field-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.password-field-group input {
+  flex: 1;
+}
+
+.btn-icon-toggle {
+  appearance: none;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: 7px;
+  padding: 0 0.9rem;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-icon-toggle:hover {
+  background: var(--color-bg);
+}
+
+.btn-icon-toggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

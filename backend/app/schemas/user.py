@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.user import UserRole
 
+
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
