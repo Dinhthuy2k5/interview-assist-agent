@@ -1,10 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.auth import router as auth_router
 from app.api.competency import router as competency_router
 from app.api.jobs import router as jobs_router
 from app.api.questions import router as questions_router
-from app.api.auth import router as auth_router
+
 from app.api.users import router as users_router
 
 app = FastAPI(

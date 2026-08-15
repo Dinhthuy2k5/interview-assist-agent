@@ -1,6 +1,7 @@
 import uuid
 
 from pydantic import BaseModel, ConfigDict, Field
+
 from app.models.user import UserRole
 
 class UserResponse(BaseModel):
