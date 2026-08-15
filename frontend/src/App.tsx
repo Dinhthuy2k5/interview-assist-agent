@@ -2,11 +2,12 @@ import { useState } from "react";
 import { useAuth } from "./contexts/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import JobUploadPage from "./pages/JobUploadPage";
+import JobListPage from "./pages/JobListPage";
 import FrameworkManagePage from "./pages/FrameworkManagePage";
 import UserManagePage from "./pages/UserManagePage";
 import { ROLE_LABEL } from "./types/user";
 
-type Tab = "jobs" | "frameworks" | "users";
+type Tab = "jobs" | "job-list" | "frameworks" | "users";
 
 export default function App() {
     const { user, loading, logout } = useAuth();
@@ -41,6 +42,15 @@ export default function App() {
                     {isHrAdmin && (
                         <button
                             type="button"
+                            className={`nav-link ${tab === "job-list" ? "is-active" : ""}`}
+                            onClick={() => setTab("job-list")}
+                        >
+                            Danh sách job
+                        </button>
+                    )}
+                    {isHrAdmin && (
+                        <button
+                            type="button"
                             className={`nav-link ${tab === "frameworks" ? "is-active" : ""}`}
                             onClick={() => setTab("frameworks")}
                         >
@@ -69,6 +79,7 @@ export default function App() {
             </header>
 
             {tab === "jobs" && <JobUploadPage />}
+            {tab === "job-list" && isHrAdmin && <JobListPage />}
             {tab === "frameworks" && isHrAdmin && <FrameworkManagePage />}
             {tab === "users" && isHrAdmin && <UserManagePage />}
         </div>
