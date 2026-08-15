@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.competency import router as competency_router
 from app.api.jobs import router as jobs_router
 from app.api.questions import router as questions_router
+from app.api.auth import router as auth_router
+from app.api.users import router as users_router
 
 app = FastAPI(
     title="Interview Assist Agent API",
@@ -22,6 +24,8 @@ app.add_middleware(
 app.include_router(competency_router)
 app.include_router(jobs_router)
 app.include_router(questions_router)
+app.include_router(auth_router)
+app.include_router(users_router)
 
 
 @app.get("/health")

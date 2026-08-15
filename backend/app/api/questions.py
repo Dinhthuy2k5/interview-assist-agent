@@ -3,11 +3,13 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.api.deps import require_role
 from app.core.db import get_db
 from app.models.competency import CompetencyFramework
 from app.models.job import Job
 from app.models.llm_usage_log import LlmUsageLog
 from app.models.question import Question
+from app.models.user import User, UserRole
 from app.schemas.question import QuestionResponse, QuestionUpdate
 from app.services.question_gen import QuestionGenError, generate_question_for_criterion
 from app.services.sensitive_filter import check_sensitive_content
@@ -16,7 +18,11 @@ router = APIRouter(tags=["questions"])
 
 
 @router.post("/jobs/{job_id}/questions/generate", response_model=list[QuestionResponse])
-def generate_questions(job_id: uuid.UUID, db: Session = Depends(get_db)):
+def generate_questions(
+    job_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_role(UserRole.hr_admin)),
+):
     job = db.get(Job, job_id)
     if not job:
         raise HTTPException(404, "Job không tồn tại")
@@ -79,7 +85,13 @@ def generate_questions(job_id: uuid.UUID, db: Session = Depends(get_db)):
 
 
 @router.get("/jobs/{job_id}/questions", response_model=list[QuestionResponse])
-def list_questions(job_id: uuid.UUID, db: Session = Depends(get_db)):
+def list_questions(
+    job_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    # TODO: khi Interviewer có UI xem câu hỏi đã duyệt trước buổi phỏng vấn
+    # (Sprint sau), nới quyền này thành require_role(hr_admin, interviewer).
+    _: User = Depends(require_role(UserRole.hr_admin)),
+):
     """Chỉ trả câu hỏi CHƯA bị sensitive filter chặn - HR không cần thấy câu bị flag,
     chỉ cần biết nó đã bị lọc (xem qua endpoint riêng nếu cần audit sau này)."""
     return (
@@ -90,7 +102,12 @@ def list_questions(job_id: uuid.UUID, db: Session = Depends(get_db)):
 
 
 @router.patch("/questions/{question_id}", response_model=QuestionResponse)
-def update_question(question_id: uuid.UUID, payload: QuestionUpdate, db: Session = Depends(get_db)):
+def update_question(
+    question_id: uuid.UUID,
+    payload: QuestionUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_role(UserRole.hr_admin)),
+):
     question = db.get(Question, question_id)
     if not question:
         raise HTTPException(404, "Question không tồn tại")
