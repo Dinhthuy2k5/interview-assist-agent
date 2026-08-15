@@ -1,5 +1,5 @@
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -69,14 +69,12 @@ def list_jobs(
     if status == "all":
         return jobs
 
-    today = date.today()
+    today = datetime.now(UTC).date()
 
     def is_open(j: Job) -> bool:
         if j.is_closed:
             return False
-        if j.application_deadline is not None and j.application_deadline < today:
-            return False
-        return True
+        return j.application_deadline is None or j.application_deadline >= today
 
     if status == "open":
         return [j for j in jobs if is_open(j)]

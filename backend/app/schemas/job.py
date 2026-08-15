@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
 from pydantic import BaseModel, ConfigDict, computed_field
 
@@ -27,7 +27,7 @@ class JobResponse(BaseModel):
         HR đóng tay HOẶC đã quá hạn nộp hồ sơ."""
         if self.is_closed:
             return "closed"
-        if self.application_deadline is not None and self.application_deadline < date.today():
+        if self.application_deadline is not None and self.application_deadline < datetime.now(UTC).date():
             return "closed"
         return "open"
 
