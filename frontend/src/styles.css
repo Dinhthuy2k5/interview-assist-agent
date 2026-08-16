@@ -676,3 +676,59 @@ code {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+
+/* --- Score picker (Interviewer chấm điểm 1-5) --- */
+.score-picker {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.score-btn {
+  appearance: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.score-btn:hover {
+  background: var(--color-bg);
+}
+
+.score-btn.is-selected {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.score-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* --- Interviewer multi-select (Session create form) --- */
+.interviewer-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  padding: 0.85rem;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.interviewer-option {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
