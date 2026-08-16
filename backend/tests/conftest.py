@@ -33,33 +33,62 @@ def db_session():
         Base.metadata.drop_all(engine)
 
 
-def _fake_hr_admin() -> User:
-    """User giả, không lưu DB - chỉ cần đủ attribute mà endpoint dùng tới
-    (role để qua require_role, full_name vì jobs.py lấy created_by từ đây).
-    Test hiện tại đều mô phỏng hành vi của HR Admin nên fix cứng role này;
-    nếu sau này có test riêng cho Interviewer/Council, override lại
-    get_current_user trong từng test đó thay vì sửa fixture chung."""
+def _make_user(role: UserRole, label: str) -> User:
     return User(
         id=uuid.uuid4(),
-        email="hr_test@example.com",
-        full_name="HR Test",
+        email=f"{label}@test.com",
+        full_name=label,
         password_hash="unused-in-tests",
-        role=UserRole.hr_admin.value,
+        role=role.value,
         is_active=True,
     )
 
 
 @pytest.fixture()
-def client(db_session):
+def users(db_session) -> dict[str, User]:
+    """User THẬT, có lưu DB - cần thiết cho các test liên quan tới session/note,
+    vì create_session validate interviewer_ids bằng cách query DB thật
+    (db.get(User, uid)), không chỉ dựa vào danh tính người gọi API.
+    Test không liên quan tới session (framework/job/question) không cần fixture
+    này, chỉ cần fixture `client` mặc định (đăng nhập sẵn là hr_admin)."""
+    pool = {
+        "hr_admin": _make_user(UserRole.hr_admin, "HR Admin"),
+        "interviewer1": _make_user(UserRole.interviewer, "Interviewer One"),
+        "interviewer2": _make_user(UserRole.interviewer, "Interviewer Two"),
+        "council": _make_user(UserRole.council, "Council Member"),
+    }
+    db_session.add_all(pool.values())
+    db_session.commit()
+    return pool
+
+
+@pytest.fixture()
+def client(db_session, users):
+    """Mặc định đăng nhập là hr_admin - giữ tương thích các test cũ (framework,
+    job, question) không cần biết về multi-user.
+
+    Dùng client.as_user(users["interviewer1"]) để đổi danh tính đang gọi API
+    NGAY TRONG 1 TEST - cần thiết để mô phỏng nhiều actor tương tác trên cùng
+    1 session (HR tạo -> interviewer A xem -> interviewer B ghi note...)."""
+    current = {"user": users["hr_admin"]}
+
     def override_get_db():
         yield db_session
 
     def override_get_current_user():
-        return _fake_hr_admin()
+        return current["user"]
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user
 
-    with TestClient(app) as c:
-        yield c
+    test_client = TestClient(app)
+
+    def as_user(user: User) -> TestClient:
+        current["user"] = user
+        return test_client
+
+    test_client.as_user = as_user  # type: ignore[attr-defined]
+
+    with test_client:
+        yield test_client
     app.dependency_overrides.clear()
