@@ -1,81 +1,80 @@
 # Data Model
 
-Trạng thái hiện tại: 5 bảng đã có migration (`e2614e6b7131`, `b54bb688f164`).
-Các bảng `Interview Session`, `Interviewer Note`, `Transcript`, `Aggregation Report`,
-`Decision` ở Phân tích/Thiết kế ban đầu **chưa có migration** — sẽ thêm ở các sprint
-tương ứng (Sprint 3-6), tài liệu này cập nhật dần theo tiến độ thật.
+Trạng thái hiện tại: đã implement qua migration thật tới Sprint 3 (`user`,
+`interview_session`, `session_interviewer`, `interviewer_note` + các bảng Sprint 0-1).
+Bảng `Aggregation Report`, `Decision` từ Phân tích ban đầu **chưa có migration** —
+dự kiến ở Sprint 5-6.
 
 ## Đã implement
 
-### `competency_framework`
-Khung năng lực — nguồn sự thật duy nhất cho việc sinh câu hỏi và chấm điểm.
+### `user`
+Tài khoản đăng nhập. Không có endpoint tự đăng ký — chỉ `hr_admin` tạo được tài khoản.
 
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | id | UUID PK | |
-| name | String(255) | |
-| description | Text, nullable | |
+| email | String(255), unique | |
+| full_name | String(255) | |
+| password_hash | String(255) | bcrypt |
+| role | String(20) | hr_admin / interviewer / council |
+| is_active | Boolean, default true | HR khoá tài khoản mà không xoá dữ liệu liên quan |
 | created_at / updated_at | DateTime | |
 
-### `criterion`
-Một tiêu chí cụ thể trong khung năng lực (VD "Problem solving").
+### `competency_framework`, `criterion`, `question`, `llm_usage_log`
 
-| Cột | Kiểu | Ghi chú |
-|---|---|---|
-| id | UUID PK | |
-| framework_id | UUID FK → competency_framework, CASCADE | |
-| name | String(255) | |
-| weight | Numeric(3,2), default 1.0 | |
-| scoring_rubric | Text, NOT NULL | Mô tả từng mức điểm 1-5 |
-| created_at / updated_at | DateTime | |
+Không đổi so với Sprint 0-2, xem lịch sử file này qua git nếu cần đối chiếu chi tiết
+từng cột — giữ nguyên cấu trúc đã mô tả trước đó.
 
 ### `job`
-Một vị trí tuyển dụng.
+
+Bổ sung so với Sprint 1: `application_deadline`, `is_closed` (quản lý vòng đời tuyển
+dụng), `created_by` giờ lấy từ `User.full_name` của người gọi API đã xác thực
+(trước đây là string tự do client gửi lên).
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| application_deadline | Date, nullable | Hạn nộp hồ sơ |
+| is_closed | Boolean | HR đóng tuyển tay, độc lập với hạn nộp |
+
+### `interview_session`
+1 buổi phỏng vấn cho 1 ứng viên ứng tuyển vào 1 Job.
 
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | id | UUID PK | |
-| title | String(255) | |
-| level | String(50) | fresher/junior/senior |
-| jd_file_path | String(512) | Object key trong MinIO |
-| jd_text | Text, nullable | Kết quả parse, HR sửa được |
-| jd_parse_status | String(20), default "pending" | pending/parsed/needs_review |
-| framework_id | UUID FK → competency_framework | |
-| created_by | String(255) | |
+| job_id | UUID FK → job | |
+| candidate_name | String(255) | |
+| candidate_info | Text, nullable | |
+| scheduled_at | DateTime(timezone=True), NOT NULL | |
+| status | String(20), default "scheduled" | scheduled / in_progress / completed |
 | created_at / updated_at | DateTime | |
 
-### `question`
-Câu hỏi phỏng vấn — **bắt buộc** gắn với 1 criterion.
+### `session_interviewer`
+Bảng liên kết N-N: 1 session có nhiều interviewer tham gia độc lập.
 
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | id | UUID PK | |
-| job_id | UUID FK → job, CASCADE | |
-| criterion_id | UUID FK → criterion, NOT NULL | Enforce trace-về-rubric ở tầng DB |
-| content | Text, NOT NULL | |
-| rationale | Text, NOT NULL | Vì sao câu hỏi đo được tiêu chí đó |
-| generated_by | String(20), default "agent" | agent / human_edited |
-| is_sensitive_flagged | Boolean, default false | Kết quả Sensitive-Attribute Filter |
-| sensitive_flag_reason | Text, nullable | |
-| is_approved | Boolean, default false | HR phải duyệt trước khi dùng |
-| created_at / updated_at | DateTime | |
+| session_id | UUID FK → interview_session, CASCADE | |
+| interviewer_id | UUID FK → user | |
+| Unique constraint | (session_id, interviewer_id) | Không gán trùng 1 interviewer 2 lần |
 
-### `llm_usage_log`
-Log mỗi lần gọi LLM — theo dõi chi phí thực tế.
+### `interviewer_note`
+Note + điểm của 1 interviewer cho 1 criterion trong 1 session — **riêng tư giữa các
+interviewer**, chỉ chính chủ mới xem được note của mình qua API.
 
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | id | UUID PK | |
-| service | String(50) | question_gen / aggregation_semantic_check / ... |
-| tokens_in | Integer | |
-| tokens_out | Integer | |
-| cost_estimate | Numeric(10,6) | USD |
-| timestamp | DateTime | Bản ghi bất biến, không có updated_at |
+| session_id | UUID FK → interview_session, CASCADE | |
+| interviewer_id | UUID FK → user | |
+| criterion_id | UUID FK → criterion | |
+| score | Integer, nullable | 1-5 |
+| note_text | Text, nullable | |
+| Unique constraint | (session_id, interviewer_id, criterion_id) | PUT lặp lại là upsert, không tạo trùng |
 
-## Chưa implement (kế hoạch, sẽ cập nhật khi có migration thật)
+## Chưa implement
 
-- `interview_session` — id, job_id, candidate_id, interviewers[], scheduled_at, status
-- `interviewer_note` — id, session_id, interviewer_id, criterion_id, score, note_text, source (manual/ai_assisted)
-- `transcript` — id, session_id, raw_audio_ref, text, timestamps, retention_expiry
 - `aggregation_report` — id, session_id, per_criteria_summary[], conflict_flags[], overall_recommendation, rationale_trace
 - `decision` — id, session_id, decided_by, final_decision, decided_at (bảng duy nhất Decision Service được ghi)
+- `transcript` — id, session_id, raw_audio_ref, text, timestamps, retention_expiry (Sprint 4, batch STT)

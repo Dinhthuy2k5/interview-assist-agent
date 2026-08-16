@@ -1,5 +1,22 @@
 # Kiến trúc hệ thống
 
+## Trạng thái implement theo service
+
+| Service | Trạng thái | Sprint |
+|---|---|---|
+| Auth (JWT + RBAC) | ✅ Đã có | 3 |
+| JD Parse Service | ✅ Đã có | 1 |
+| Question Gen Service | ✅ Đã có | 2 |
+| Session & Note Service | ✅ Đã có | 3 |
+| Aggregation Service | ⏳ Chưa làm | 5 (kế hoạch) |
+| Decision Service | ⏳ Chưa làm | 6 (kế hoạch) |
+
+Auth bổ sung 1 lớp kiểm tra trước khi request chạm tới các service ở trên: mọi
+endpoint (trừ `/health`, `/auth/login`) đều qua `get_current_user` (giải mã JWT,
+load `User`, kiểm tra `is_active`) và phần lớn còn qua `require_role(...)` chặn
+theo đúng role cần thiết (VD: chỉ `hr_admin` tạo được Job/Framework/Session; chỉ
+interviewer được gán mới đọc/ghi note của session đó).
+
 ## Tổng quan
 
 Interview Assist Agent gồm 5 service tách biệt, giao tiếp qua REST API, dùng chung
@@ -107,6 +124,33 @@ chỉ dựa vào quy ước "đừng tự động hoá" dễ bị vi phạm khi 
 | Embedding | sentence-transformers (self-host) — pre-check trước khi gọi LLM |
 | Auth | JWT + RBAC middleware |
 | Containerize | Docker + docker-compose |
+
+## Luồng Session & Note (Sprint 3)
+
+```mermaid
+sequenceDiagram
+    participant HR as HR Admin
+    participant SN as Session & Note Service
+    participant IV as Interviewer
+
+    HR->>SN: POST /sessions (job, ứng viên, chọn interviewer)
+    SN->>SN: Validate interviewer_ids đúng tồn tại + đúng role interviewer
+    SN-->>HR: Session tạo thành công (status=scheduled)
+
+    IV->>SN: GET /sessions/mine
+    SN-->>IV: Chỉ session được gán cho IV
+
+    IV->>SN: GET /sessions/{id}
+    SN->>SN: Check IV có phải participant không (403 nếu không)
+    SN-->>IV: Câu hỏi đã duyệt + CHỈ note của chính IV (không lộ note người khác)
+
+    IV->>SN: PUT /sessions/{id}/notes/{criterion_id} (score, note_text)
+    SN->>SN: Upsert theo unique(session, interviewer, criterion)
+    SN-->>IV: Note đã lưu
+
+    IV->>SN: PATCH /sessions/{id}/status (completed)
+    SN-->>IV: Session hoàn tất
+```
 
 ## Liên quan
 

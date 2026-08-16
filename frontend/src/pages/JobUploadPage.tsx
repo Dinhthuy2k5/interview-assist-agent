@@ -15,7 +15,7 @@ export default function JobUploadPage() {
     const [title, setTitle] = useState("");
     const [level, setLevel] = useState(LEVELS[1]);
     const [frameworkId, setFrameworkId] = useState("");
-    const [createdBy, setCreatedBy] = useState("");
+    const [applicationDeadline, setApplicationDeadline] = useState("");
     const [file, setFile] = useState<File | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
@@ -41,7 +41,13 @@ export default function JobUploadPage() {
         setSubmitting(true);
         setSubmitError(null);
         try {
-            const created = await createJob({ title, level, frameworkId, createdBy, file });
+            const created = await createJob({
+                title,
+                level,
+                frameworkId,
+                file,
+                applicationDeadline: applicationDeadline || undefined,
+            });
             setJob(created);
         } catch (e) {
             setSubmitError(e instanceof Error ? e.message : "Tạo job thất bại, thử lại.");
@@ -120,14 +126,14 @@ export default function JobUploadPage() {
                     </div>
 
                     <div className="field">
-                        <label htmlFor="createdBy">Người tạo</label>
+                        <label htmlFor="deadline">Hạn nộp hồ sơ (tuỳ chọn)</label>
                         <input
-                            id="createdBy"
-                            value={createdBy}
-                            onChange={(e) => setCreatedBy(e.target.value)}
-                            placeholder="Tên hoặc email của bạn"
-                            required
+                            id="deadline"
+                            type="date"
+                            value={applicationDeadline}
+                            onChange={(e) => setApplicationDeadline(e.target.value)}
                         />
+                        <p className="field-hint">Để trống nếu không giới hạn thời gian tuyển.</p>
                     </div>
 
                     <div className="field">
