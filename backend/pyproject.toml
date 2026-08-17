@@ -27,6 +27,12 @@ dev = [
     "ruff>=0.5",
     "reportlab>=4.2",
 ]
+# faster-whisper kéo theo ctranslate2 (nặng) - tách riêng để pip install -e .
+# (dev/test hàng ngày) không phải cài/tải package này. Cần cho production:
+# pip install -e .[stt]
+stt = [
+    "faster-whisper>=1.0",
+]
 
 [tool.ruff]
 line-length = 100

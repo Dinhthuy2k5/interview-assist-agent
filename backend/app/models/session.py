@@ -65,3 +65,23 @@ class InterviewerNote(Base, TimestampMixin):
     criterion_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("criterion.id"), nullable=False)
     score: Mapped[int | None] = mapped_column(Integer, nullable=True, comment="1-5, null nếu chưa chấm")
     note_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+class Transcript(Base, TimestampMixin):
+    """Bản ghi âm + text đã transcribe cho 1 session. 1 session chỉ có 1 transcript
+    (mic ghi cả buổi, dùng chung cho mọi interviewer tham khảo) - unique trên
+    session_id để enforce đúng ràng buộc này. retention_expiry set ngay lúc tạo
+    theo NFR bảo mật dữ liệu ứng viên (mặc định 180 ngày) - việc xoá tự động khi
+    hết hạn là task vận hành riêng (cron/scheduled job), chưa nằm trong scope này."""
+
+    __tablename__ = "transcript"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUIDPk, primary_key=True, default=gen_uuid)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("interview_session.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    audio_file_path: Mapped[str] = mapped_column(String(512), nullable=False, comment="Object key trong MinIO")
+    text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(20), default="pending", comment="pending/processing/completed/failed"
+    )
+    retention_expiry: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

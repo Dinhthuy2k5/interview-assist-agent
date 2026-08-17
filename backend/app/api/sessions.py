@@ -19,31 +19,13 @@ from app.schemas.session import (
     SessionResponse,
     SessionStatusUpdate,
 )
+from app.services.session_access import (
+    get_session_or_404,
+    require_participant,
+    require_session_access,
+)
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
-
-
-def _get_session_or_404(session_id: uuid.UUID, db: Session) -> InterviewSession:
-    session = db.get(InterviewSession, session_id)
-    if not session:
-        raise HTTPException(404, "Session không tồn tại")
-    return session
-
-
-def _require_participant(session_id: uuid.UUID, user: User, db: Session) -> None:
-    """Chặn interviewer xem/ghi note session mình không được gán - mỗi interviewer
-    chỉ thao tác trên session của chính mình, kể cả khi biết session_id người khác."""
-    is_participant = (
-        db.query(SessionInterviewer)
-        .filter(
-            SessionInterviewer.session_id == session_id,
-            SessionInterviewer.interviewer_id == user.id,
-        )
-        .first()
-        is not None
-    )
-    if not is_participant:
-        raise HTTPException(403, "Bạn không được gán vào session này")
 
 
 @router.post(
@@ -116,15 +98,8 @@ def list_my_sessions(
 def get_session_detail(
     session_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
-    session = _get_session_or_404(session_id, db)
-
-    # hr_admin xem được mọi session (giám sát), interviewer chỉ xem được session
-    # mình tham gia. Mọi role khác (council, hoặc role tương lai) CHƯA có use case
-    # cho endpoint này - chặn tường minh thay vì để lọt qua vì không khớp interviewer.
-    if user.role == UserRole.interviewer.value:
-        _require_participant(session_id, user, db)
-    elif user.role != UserRole.hr_admin.value:
-        raise HTTPException(403, "Bạn không có quyền xem session này")
+    session = get_session_or_404(session_id, db)
+    require_session_access(session_id, user, db)
 
     # Join Criterion để lấy tên + rubric - thiếu 2 field này interviewer không biết
     # chấm điểm dựa trên tiêu chuẩn nào.
@@ -166,8 +141,8 @@ def upsert_note(
     db: Session = Depends(get_db),
     user: User = Depends(require_role(UserRole.interviewer)),
 ):
-    _get_session_or_404(session_id, db)
-    _require_participant(session_id, user, db)
+    get_session_or_404(session_id, db)
+    require_participant(session_id, user, db)
 
     note = (
         db.query(InterviewerNote)
@@ -198,11 +173,8 @@ def update_session_status(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    session = _get_session_or_404(session_id, db)
-    if user.role == UserRole.interviewer.value:
-        _require_participant(session_id, user, db)
-    elif user.role != UserRole.hr_admin.value:
-        raise HTTPException(403, "Bạn không có quyền đổi trạng thái session này")
+    session = get_session_or_404(session_id, db)
+    require_session_access(session_id, user, db)
 
     session.status = payload.status
     db.commit()
