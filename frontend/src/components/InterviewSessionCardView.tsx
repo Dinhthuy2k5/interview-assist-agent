@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getSessionDetail, updateSessionStatus, upsertNote } from "../api/sessions";
 import type { SessionDetail } from "../types/session";
 import { parseRubric } from "../utils/rubric";
+import TranscriptPanel from "./TranscriptPanel";
 
 interface Props {
     sessionId: string;
@@ -116,8 +117,11 @@ export default function InterviewSessionCardView({ sessionId, onBack }: Props) {
 
     async function goTo(newIndex: number) {
         // Tự lưu trước khi chuyển câu - đúng nhu cầu "ghi nhanh, không bị phân tâm",
-        // interviewer không phải nhớ bấm Lưu trước khi lật thẻ tiếp theo.
-        await saveCurrent();
+        // interviewer không phải nhớ bấm Lưu trước khi lật thẻ tiếp theo. Nhưng nếu
+        // lưu thất bại, KHÔNG được chuyển câu - nếu không note vừa gõ sẽ mất mà
+        // interviewer tưởng đã lưu (đã chuyển sang câu khác).
+        const ok = await saveCurrent();
+        if (!ok) return;
         setIndex(newIndex);
     }
 
@@ -147,6 +151,8 @@ export default function InterviewSessionCardView({ sessionId, onBack }: Props) {
             <p className="page-description">
                 Tiêu chí {index + 1}/{questions.length} — {current.criterion_name}
             </p>
+
+            <TranscriptPanel sessionId={sessionId} />
 
             <div className="card">
                 <p className="question-content" style={{ fontSize: "1.05rem" }}>
