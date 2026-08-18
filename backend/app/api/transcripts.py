@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -12,6 +13,8 @@ from app.models.user import User
 from app.schemas.transcript import TranscriptResponse
 from app.services.session_access import get_session_or_404, require_session_access
 from app.services.stt import TranscriptionError, transcribe_audio
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/sessions", tags=["transcripts"])
 
@@ -39,11 +42,13 @@ async def upload_transcript_audio(
         raise HTTPException(400, f"Chỉ nhận file audio {ALLOWED_AUDIO_EXTENSIONS}")
 
     existing = db.query(Transcript).filter(Transcript.session_id == session_id).first()
-    if existing is not None:
+    # Chỉ chặn (409) nếu bản ghi trước đó ĐÃ xử lý xong hoặc đang xử lý - không ai
+    # được ghi đè kết quả đã thành công. Nếu bản ghi trước "failed", cho phép tải
+    # lại (dùng chung record cũ) - đây là tính năng "retry" HR/interviewer cần.
+    if existing is not None and existing.status != "failed":
         raise HTTPException(
             409,
-            "Session này đã có transcript - mỗi session chỉ ghi 1 audio dùng chung "
-            "cho mọi interviewer, không upload đè.",
+            "Session này đã có transcript đang xử lý hoặc đã hoàn tất - không upload đè.",
         )
 
     audio_bytes = await file.read()
@@ -57,13 +62,23 @@ async def upload_transcript_audio(
     object_key = f"audio/{session_id}_{uuid.uuid4()}_{file.filename}"
     upload_file(object_key, audio_bytes, file.content_type or "application/octet-stream")
 
-    transcript = Transcript(
-        session_id=session_id,
-        audio_file_path=object_key,
-        status="processing",
-        retention_expiry=datetime.now(UTC) + timedelta(days=RETENTION_DAYS),
-    )
-    db.add(transcript)
+    if existing is not None:
+        # Tải lại sau khi failed - tái sử dụng record cũ thay vì tạo bản ghi mới,
+        # giữ đúng ràng buộc "1 transcript/session" (unique constraint ở DB).
+        transcript = existing
+        transcript.audio_file_path = object_key
+        transcript.text = None
+        transcript.status = "processing"
+        transcript.retention_expiry = datetime.now(UTC) + timedelta(days=RETENTION_DAYS)
+    else:
+        transcript = Transcript(
+            session_id=session_id,
+            audio_file_path=object_key,
+            status="processing",
+            retention_expiry=datetime.now(UTC) + timedelta(days=RETENTION_DAYS),
+        )
+        db.add(transcript)
+
     db.commit()
     db.refresh(transcript)
 
@@ -73,7 +88,11 @@ async def upload_transcript_audio(
     try:
         transcript.text = transcribe_audio(audio_bytes)
         transcript.status = "completed"
-    except TranscriptionError:
+    except TranscriptionError as e:
+        # Trước đây lỗi này bị nuốt hoàn toàn - không log, không lưu, không trả về
+        # đâu cả, khiến không ai (kể cả dev) biết được nguyên nhân thật khi transcript
+        # failed. Log lại đầy đủ để tra được qua `docker compose logs backend`.
+        logger.error("Transcribe thất bại cho session %s: %s", session_id, e)
         transcript.status = "failed"
 
     db.commit()

@@ -1,6 +1,6 @@
 import io
 
-MODEL_SIZE = "base"
+MODEL_SIZE = "small"
 _model = None
 
 
