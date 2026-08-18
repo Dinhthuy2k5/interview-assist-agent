@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { createSession, listSessions } from "../api/sessions";
 import { listJobs } from "../api/jobs";
 import { listUsers } from "../api/users";
 import type { Job } from "../types/job";
 import type { Session } from "../types/session";
 import type { User } from "../types/user";
+import TranscriptPanel from "../components/TranscriptPanel";
 
 const STATUS_LABEL: Record<string, string> = {
     scheduled: "Chưa bắt đầu",
@@ -36,6 +37,7 @@ export default function SessionManagePage() {
     const [selectedInterviewers, setSelectedInterviewers] = useState<string[]>([]);
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
 
     function load() {
         setLoading(true);
@@ -215,20 +217,41 @@ export default function SessionManagePage() {
                                 <th>Job</th>
                                 <th>Thời gian</th>
                                 <th>Trạng thái</th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
                             {sessions.map((s) => (
-                                <tr key={s.id}>
-                                    <td>{s.candidate_name}</td>
-                                    <td>{jobTitle(s.job_id)}</td>
-                                    <td>{formatDateTime(s.scheduled_at)}</td>
-                                    <td>
-                                        <span className={`status-badge ${statusBadgeClass(s.status)}`}>
-                                            {STATUS_LABEL[s.status]}
-                                        </span>
-                                    </td>
-                                </tr>
+                                <Fragment key={s.id}>
+                                    <tr>
+                                        <td>{s.candidate_name}</td>
+                                        <td>{jobTitle(s.job_id)}</td>
+                                        <td>{formatDateTime(s.scheduled_at)}</td>
+                                        <td>
+                                            <span className={`status-badge ${statusBadgeClass(s.status)}`}>
+                                                {STATUS_LABEL[s.status]}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button
+                                                type="button"
+                                                className="btn-icon-toggle"
+                                                onClick={() =>
+                                                    setExpandedSessionId((prev) => (prev === s.id ? null : s.id))
+                                                }
+                                            >
+                                                {expandedSessionId === s.id ? "Ẩn transcript" : "Transcript"}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {expandedSessionId === s.id && (
+                                        <tr>
+                                            <td colSpan={5} style={{ padding: "0 0 0.75rem" }}>
+                                                <TranscriptPanel sessionId={s.id} />
+                                            </td>
+                                        </tr>
+                                    )}
+                                </Fragment>
                             ))}
                         </tbody>
                     </table>
