@@ -71,10 +71,12 @@ def create_session(payload: SessionCreate, db: Session = Depends(get_db)):
 def list_sessions(
     job_id: uuid.UUID | None = None,
     db: Session = Depends(get_db),
-    _: User = Depends(require_role(UserRole.hr_admin)),
+    _: User = Depends(require_role(UserRole.hr_admin, UserRole.council)),
 ):
-    """HR Admin xem toàn bộ session (giám sát chung), lọc theo job nếu cần.
-    Interviewer dùng /sessions/mine riêng - không thấy session của người khác."""
+    """HR Admin xem toàn bộ session (giám sát chung) hoặc lọc theo job. Council
+    cũng cần endpoint này để biết session nào tồn tại trước khi đọc report tổng
+    hợp (GET .../aggregation) - không có nó thì quyền đọc report vô nghĩa vì
+    không cách nào biết session_id. Interviewer dùng /sessions/mine riêng."""
     query = db.query(InterviewSession)
     if job_id is not None:
         query = query.filter(InterviewSession.job_id == job_id)

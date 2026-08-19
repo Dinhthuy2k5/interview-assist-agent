@@ -60,11 +60,12 @@ async def create_job(
 def list_jobs(
     status: Literal["all", "open", "closed"] = "all",
     db: Session = Depends(get_db),
-    _: User = Depends(require_role(UserRole.hr_admin)),
+    _: User = Depends(require_role(UserRole.hr_admin, UserRole.council)),
 ):
     """Lọc theo status tính động (không phải cột DB) - ổn ở quy mô hiện tại, nếu
     số lượng job lớn lên nhiều nên đẩy điều kiện lọc xuống SQL thay vì lọc bằng
-    Python sau khi đã fetch hết."""
+    Python sau khi đã fetch hết. Council cần endpoint này để hiện tên vị trí khi
+    xem danh sách báo cáo tổng hợp - không cần quyền tạo/sửa job."""
     jobs = db.query(Job).order_by(Job.created_at.desc()).all()
     if status == "all":
         return jobs
