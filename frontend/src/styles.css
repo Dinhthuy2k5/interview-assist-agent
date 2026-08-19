@@ -773,3 +773,54 @@ code {
   line-height: 1.6;
   white-space: pre-wrap;
 }
+
+/* --- Aggregation report panel (Sprint 5) --- */
+.aggregation-panel {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+  background: var(--color-bg);
+}
+
+.aggregation-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.aggregation-overall {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.aggregation-score {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.aggregation-criteria-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.aggregation-criterion-row {
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  padding: 0.75rem 0.85rem;
+  background: var(--color-surface);
+}
+
+.aggregation-criterion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}

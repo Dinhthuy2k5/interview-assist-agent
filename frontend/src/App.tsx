@@ -7,22 +7,24 @@ import FrameworkManagePage from "./pages/FrameworkManagePage";
 import UserManagePage from "./pages/UserManagePage";
 import SessionManagePage from "./pages/SessionManagePage";
 import InterviewerSessionsPage from "./pages/InterviewerSessionsPage";
+import CouncilReportPage from "./pages/CouncilReportPage";
 import { ROLE_LABEL } from "./types/user";
 
-type Tab = "jobs" | "job-list" | "frameworks" | "sessions" | "my-sessions" | "users";
+type Tab = "jobs" | "job-list" | "frameworks" | "sessions" | "my-sessions" | "reports" | "users";
 
 export default function App() {
     const { user, loading, logout } = useAuth();
     const [tab, setTab] = useState<Tab>("jobs");
     const [initialTabSet, setInitialTabSet] = useState(false);
 
-    // Tab mặc định khác nhau theo role - Interviewer không có quyền vào "Vị trí &
-    // JD" (backend chặn hr_admin only), để mặc định "jobs" sẽ gặp lỗi 403 ngay khi
-    // đăng nhập. Chỉ chạy 1 lần khi user vừa xác định xong (không ghi đè lựa chọn
-    // tab thủ công của người dùng sau đó).
+    // Tab mặc định khác nhau theo role - Interviewer/Council không có quyền vào
+    // "Vị trí & JD" (backend chặn hr_admin only), để mặc định "jobs" sẽ gặp lỗi
+    // 403 ngay khi đăng nhập. Chỉ chạy 1 lần khi user vừa xác định xong (không
+    // ghi đè lựa chọn tab thủ công của người dùng sau đó).
     useEffect(() => {
         if (!initialTabSet && user) {
             if (user.role === "interviewer") setTab("my-sessions");
+            if (user.role === "council") setTab("reports");
             setInitialTabSet(true);
         }
     }, [user, initialTabSet]);
@@ -93,6 +95,15 @@ export default function App() {
                             Phiên của tôi
                         </button>
                     )}
+                    {isCouncil && (
+                        <button
+                            type="button"
+                            className={`nav-link ${tab === "reports" ? "is-active" : ""}`}
+                            onClick={() => setTab("reports")}
+                        >
+                            Báo cáo đánh giá
+                        </button>
+                    )}
                     {isHrAdmin && (
                         <button
                             type="button"
@@ -120,15 +131,7 @@ export default function App() {
             {isHrAdmin && tab === "sessions" && <SessionManagePage />}
             {isHrAdmin && tab === "users" && <UserManagePage />}
             {isInterviewer && tab === "my-sessions" && <InterviewerSessionsPage />}
-
-            {isCouncil && (
-                <div className="page-content">
-                    <div className="notice notice-warning">
-                        Chưa có tính năng nào cho Hội đồng tuyển dụng ở bản này - phần xem tổng hợp
-                        đánh giá đang được phát triển ở sprint sau.
-                    </div>
-                </div>
-            )}
+            {isCouncil && tab === "reports" && <CouncilReportPage />}
         </div>
     );
 }

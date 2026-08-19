@@ -6,6 +6,7 @@ import type { Job } from "../types/job";
 import type { Session } from "../types/session";
 import type { User } from "../types/user";
 import TranscriptPanel from "../components/TranscriptPanel";
+import AggregationPanel from "../components/AggregationPanel";
 
 const STATUS_LABEL: Record<string, string> = {
     scheduled: "Chưa bắt đầu",
@@ -240,7 +241,7 @@ export default function SessionManagePage() {
                                                     setExpandedSessionId((prev) => (prev === s.id ? null : s.id))
                                                 }
                                             >
-                                                {expandedSessionId === s.id ? "Ẩn transcript" : "Transcript"}
+                                                {expandedSessionId === s.id ? "Ẩn chi tiết" : "Chi tiết"}
                                             </button>
                                         </td>
                                     </tr>
@@ -248,6 +249,7 @@ export default function SessionManagePage() {
                                         <tr>
                                             <td colSpan={5} style={{ padding: "0 0 0.75rem" }}>
                                                 <TranscriptPanel sessionId={s.id} />
+                                                <AggregationPanel sessionId={s.id} canTrigger />
                                             </td>
                                         </tr>
                                     )}
