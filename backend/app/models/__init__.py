@@ -1,3 +1,4 @@
+from app.models.aggregation import AggregationReport
 from app.models.base import Base
 from app.models.competency import CompetencyFramework, Criterion
 from app.models.job import Job
@@ -7,6 +8,7 @@ from app.models.session import InterviewerNote, InterviewSession, SessionIntervi
 from app.models.user import User
 
 __all__ = [
+    "AggregationReport",
     "Base",
     "CompetencyFramework",
     "Criterion",
