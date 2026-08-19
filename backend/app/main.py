@@ -10,7 +10,6 @@ from app.api.sessions import router as sessions_router
 from app.api.transcripts import router as transcripts_router
 from app.api.users import router as users_router
 
-
 app = FastAPI(
     title="Interview Assist Agent API",
     description="AI Agent hỗ trợ phỏng vấn & tổng hợp đánh giá ứng viên (đề tài 113 / BO-17)",
