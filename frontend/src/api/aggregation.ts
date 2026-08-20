@@ -1,8 +1,12 @@
 import { API_BASE_URL, apiFetch, getStoredToken } from "./client";
-import type { AggregationReport } from "../types/aggregation";
+import type { AggregationReport, RawNote } from "../types/aggregation";
 
 export function triggerAggregate(sessionId: string): Promise<AggregationReport> {
     return apiFetch<AggregationReport>(`/sessions/${sessionId}/aggregate`, { method: "POST" });
+}
+
+export function getSessionNotes(sessionId: string): Promise<RawNote[]> {
+    return apiFetch<RawNote[]>(`/sessions/${sessionId}/notes`);
 }
 
 /** Trả về null nếu session chưa được tổng hợp (404 - trạng thái BÌNH THƯỜNG) -

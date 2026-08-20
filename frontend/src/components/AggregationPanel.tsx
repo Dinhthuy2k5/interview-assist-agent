@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { getAggregationReport, triggerAggregate } from "../api/aggregation";
-import type { AggregationReport } from "../types/aggregation";
+import { getAggregationReport, getSessionNotes, triggerAggregate } from "../api/aggregation";
+import type { AggregationReport, RawNote } from "../types/aggregation";
 
 interface Props {
     sessionId: string;
@@ -21,6 +21,9 @@ export default function AggregationPanel({ sessionId, canTrigger }: Props) {
     const [loadError, setLoadError] = useState<string | null>(null);
     const [aggregating, setAggregating] = useState(false);
     const [aggregateError, setAggregateError] = useState<string | null>(null);
+    const [rawNotes, setRawNotes] = useState<RawNote[] | null>(null);
+    const [loadingNotes, setLoadingNotes] = useState(false);
+    const [notesError, setNotesError] = useState<string | null>(null);
 
     function load() {
         setLoading(true);
@@ -43,6 +46,23 @@ export default function AggregationPanel({ sessionId, canTrigger }: Props) {
             setAggregateError(err instanceof Error ? err.message : "Tổng hợp thất bại, thử lại.");
         } finally {
             setAggregating(false);
+        }
+    }
+
+    async function handleShowNotes() {
+        if (rawNotes) {
+            setRawNotes(null); // toggle ẩn nếu đã hiện
+            return;
+        }
+        setLoadingNotes(true);
+        setNotesError(null);
+        try {
+            const notes = await getSessionNotes(sessionId);
+            setRawNotes(notes);
+        } catch (err) {
+            setNotesError(err instanceof Error ? err.message : "Không tải được note gốc.");
+        } finally {
+            setLoadingNotes(false);
         }
     }
 
@@ -123,9 +143,43 @@ export default function AggregationPanel({ sessionId, canTrigger }: Props) {
                                         Chưa ghi note: {c.missing_interviewer_labels.join(", ")}
                                     </p>
                                 )}
+
+                                {rawNotes && (
+                                    <div className="raw-notes-box">
+                                        {rawNotes
+                                            .filter((n) => n.criterion_id === c.criterion_id)
+                                            .map((n, i) => (
+                                                <div key={i} className="raw-note-item">
+                                                    <span className="raw-note-label">{n.interviewer_label}</span>
+                                                    <span className="raw-note-score">
+                                                        {n.score !== null ? `${n.score}/5` : "Chưa chấm"}
+                                                    </span>
+                                                    <p className="raw-note-text">
+                                                        {n.note_text || "(không có ghi chú)"}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        {rawNotes.filter((n) => n.criterion_id === c.criterion_id).length === 0 && (
+                                            <p className="field-hint" style={{ margin: 0 }}>
+                                                Chưa có note nào cho tiêu chí này.
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>
+
+                    <div className="question-actions" style={{ marginTop: "0.85rem" }}>
+                        <button type="button" className="btn-icon-toggle" onClick={handleShowNotes} disabled={loadingNotes}>
+                            {loadingNotes ? "Đang tải..." : rawNotes ? "Ẩn note gốc" : "Xem note gốc"}
+                        </button>
+                    </div>
+                    {notesError && (
+                        <div className="notice notice-error" style={{ marginTop: "0.6rem", marginBottom: 0 }}>
+                            {notesError}
+                        </div>
+                    )}
                 </div>
             )}
         </div>

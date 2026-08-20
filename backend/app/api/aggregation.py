@@ -10,7 +10,7 @@ from app.models.competency import CompetencyFramework
 from app.models.job import Job
 from app.models.session import InterviewerNote, SessionInterviewer
 from app.models.user import UserRole
-from app.schemas.aggregation import AggregationReportResponse
+from app.schemas.aggregation import AggregationReportResponse, RawNoteResponse
 from app.services.aggregation import (
     SemanticCheckError,
     build_interviewer_labels,
@@ -155,3 +155,45 @@ def get_aggregation_report(session_id: uuid.UUID, db: Session = Depends(get_db))
     if report is None:
         raise HTTPException(404, "Session này chưa được tổng hợp")
     return report
+
+
+@router.get(
+    "/{session_id}/notes",
+    response_model=list[RawNoteResponse],
+    # Cùng quyền với GET .../aggregation - đây là tính năng bổ trợ trực tiếp cho
+    # report: khi semantic_note không tự tóm tắt được (LLM lỗi) hoặc HR/Council
+    # muốn đối chiếu kỹ hơn con số trung bình, họ CẦN xem được note gốc - trước
+    # đây message gợi ý "xem note gốc" trỏ tới 1 tính năng không tồn tại.
+    dependencies=[Depends(require_role(UserRole.hr_admin, UserRole.council))],
+)
+def get_session_notes(session_id: uuid.UUID, db: Session = Depends(get_db)):
+    session = get_session_or_404(session_id, db)
+
+    job = db.get(Job, session.job_id)
+    framework = db.get(CompetencyFramework, job.framework_id) if job else None
+    criterion_names = {c.id: c.name for c in framework.criteria} if framework else {}
+
+    participants = (
+        db.query(SessionInterviewer)
+        .filter(SessionInterviewer.session_id == session_id)
+        .order_by(SessionInterviewer.created_at)
+        .all()
+    )
+    interviewer_label = build_interviewer_labels([p.interviewer_id for p in participants])
+
+    notes = (
+        db.query(InterviewerNote)
+        .filter(InterviewerNote.session_id == session_id)
+        .all()
+    )
+
+    return [
+        RawNoteResponse(
+            criterion_id=n.criterion_id,
+            criterion_name=criterion_names.get(n.criterion_id, "(tiêu chí không xác định)"),
+            interviewer_label=interviewer_label.get(n.interviewer_id, "Người phỏng vấn (không xác định)"),
+            score=n.score,
+            note_text=n.note_text,
+        )
+        for n in notes
+    ]

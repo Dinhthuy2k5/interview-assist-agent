@@ -16,6 +16,18 @@ class CriterionSummary(BaseModel):
     missing_interviewer_labels: list[str]
 
 
+class RawNoteResponse(BaseModel):
+    """Note gốc kèm nhãn ẩn danh (dùng chung interviewer_label với AggregationReport,
+    xem app.services.aggregation.build_interviewer_labels) - HR/Council xem khi cần
+    đối chiếu trực tiếp, đặc biệt khi semantic_note không tự tóm tắt được (LLM lỗi)."""
+
+    criterion_id: uuid.UUID
+    criterion_name: str
+    interviewer_label: str
+    score: int | None
+    note_text: str | None
+
+
 class AggregationReportResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

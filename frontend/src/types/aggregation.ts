@@ -1,3 +1,11 @@
+export interface RawNote {
+    criterion_id: string;
+    criterion_name: string;
+    interviewer_label: string;
+    score: number | null;
+    note_text: string | null;
+}
+
 export interface CriterionSummary {
     criterion_id: string;
     criterion_name: string;
