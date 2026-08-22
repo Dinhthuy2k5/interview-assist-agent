@@ -75,7 +75,7 @@ def test_aggregate_forbidden_for_interviewer_and_council(client, users, db_sessi
 
 
 def test_get_aggregation_allowed_for_hr_and_council_forbidden_for_interviewer(client, users, db_session):
-    session, c1 = _create_session_with_two_criteria(client, users, db_session)
+    session, c1, _c2 = _create_session_with_two_criteria(client, users, db_session)
     _add_note(db_session, session["id"], users["interviewer1"].id, c1.id, 3, "ổn")
 
     client.post(f"/sessions/{session['id']}/aggregate")
@@ -97,7 +97,7 @@ def test_get_aggregation_before_aggregate_returns_404(client, users, db_session)
 def test_rule_based_conflict_detected_and_uses_mock_summary(client, users, db_session):
     """settings.llm_provider mặc định "mock" trong test (config.py) - verify không
     gọi LLM thật, summary bắt đầu bằng [MOCK]."""
-    session, c1= _create_session_with_two_criteria(client, users, db_session)
+    session, c1, _c2 = _create_session_with_two_criteria(client, users, db_session)
     _add_note(db_session, session["id"], users["interviewer1"].id, c1.id, 1, "Không xác định được vấn đề")
     _add_note(db_session, session["id"], users["interviewer2"].id, c1.id, 5, "Xử lý xuất sắc")
 
@@ -112,7 +112,7 @@ def test_rule_based_conflict_detected_and_uses_mock_summary(client, users, db_se
 
 
 def test_no_conflict_when_scores_close_and_notes_similar(client, users, db_session):
-    session, c1= _create_session_with_two_criteria(client, users, db_session)
+    session, c1, _c2 = _create_session_with_two_criteria(client, users, db_session)
     _add_note(db_session, session["id"], users["interviewer1"].id, c1.id, 4, "Xử lý tốt")
     _add_note(db_session, session["id"], users["interviewer2"].id, c1.id, 4, "Xử lý tốt")
 
@@ -124,7 +124,7 @@ def test_no_conflict_when_scores_close_and_notes_similar(client, users, db_sessi
 
 
 def test_embedding_conflict_detected_when_scores_close_but_notes_differ(client, users, db_session):
-    session, c1= _create_session_with_two_criteria(client, users, db_session)
+    session, c1, _c2 = _create_session_with_two_criteria(client, users, db_session)
     _add_note(db_session, session["id"], users["interviewer1"].id, c1.id, 3, "Chỉ nêu được hướng chung")
     _add_note(db_session, session["id"], users["interviewer2"].id, c1.id, 3, "Giải quyết triệt để vấn đề")
 
