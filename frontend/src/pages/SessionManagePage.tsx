@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { createSession, listSessions } from "../api/sessions";
 import { listJobs } from "../api/jobs";
 import { listUsers } from "../api/users";
@@ -30,7 +30,9 @@ export default function SessionManagePage() {
     const [sessions, setSessions] = useState<Session[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
+    const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
+    const [showCreateForm, setShowCreateForm] = useState(false);
     const [jobId, setJobId] = useState("");
     const [candidateName, setCandidateName] = useState("");
     const [candidateInfo, setCandidateInfo] = useState("");
@@ -38,7 +40,6 @@ export default function SessionManagePage() {
     const [selectedInterviewers, setSelectedInterviewers] = useState<string[]>([]);
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
-    const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
 
     function load() {
         setLoading(true);
@@ -69,7 +70,7 @@ export default function SessionManagePage() {
         setSubmitting(true);
         setSubmitError(null);
         try {
-            await createSession({
+            const created = await createSession({
                 job_id: jobId,
                 candidate_name: candidateName,
                 candidate_info: candidateInfo || null,
@@ -80,7 +81,9 @@ export default function SessionManagePage() {
             setCandidateInfo("");
             setScheduledAt("");
             setSelectedInterviewers([]);
+            setShowCreateForm(false);
             load();
+            setSelectedSessionId(created.id);
         } catch (e) {
             setSubmitError(e instanceof Error ? e.message : "Tạo phiên phỏng vấn thất bại.");
         } finally {
@@ -94,169 +97,151 @@ export default function SessionManagePage() {
 
     return (
         <div className="page-content">
-            <h1 className="page-heading">Phiên phỏng vấn</h1>
-            <p className="page-description">
-                Tạo phiên phỏng vấn cho ứng viên và gán interviewer tham gia. Mỗi interviewer ghi
-                note/điểm độc lập, không thấy note của người khác cho tới khi có bước tổng hợp
-                (sprint sau).
-            </p>
-
-            {!loading && jobs.length === 0 && (
-                <div className="notice notice-warning">
-                    Chưa có job nào - tạo job trước ở tab "Vị trí &amp; JD".
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem" }}>
+                <div>
+                    <h1 className="page-heading">Phiên phỏng vấn</h1>
+                    <p className="page-description" style={{ marginBottom: showCreateForm ? "1.5rem" : 0 }}>
+                        Tạo phiên phỏng vấn, gán interviewer. Chọn 1 phiên bên trái để xem transcript và
+                        báo cáo tổng hợp.
+                    </p>
                 </div>
-            )}
-            {!loading && interviewers.length === 0 && (
-                <div className="notice notice-warning">
-                    Chưa có tài khoản Interviewer nào - tạo ở tab "Người dùng".
-                </div>
-            )}
-
-            <div className="card">
-                <h3 style={{ marginTop: 0, fontSize: "1rem" }}>Tạo phiên phỏng vấn mới</h3>
-                <form onSubmit={handleSubmit}>
-                    <div className="field">
-                        <label htmlFor="session-job">Job</label>
-                        <select
-                            id="session-job"
-                            value={jobId}
-                            onChange={(e) => setJobId(e.target.value)}
-                            required
-                            disabled={jobs.length === 0}
-                        >
-                            {jobs.map((j) => (
-                                <option key={j.id} value={j.id}>
-                                    {j.title}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="field">
-                        <label htmlFor="candidate-name">Tên ứng viên</label>
-                        <input
-                            id="candidate-name"
-                            value={candidateName}
-                            onChange={(e) => setCandidateName(e.target.value)}
-                            required
-                        />
-                    </div>
-
-                    <div className="field">
-                        <label htmlFor="candidate-info">Thông tin thêm (tuỳ chọn)</label>
-                        <textarea
-                            id="candidate-info"
-                            rows={2}
-                            value={candidateInfo}
-                            onChange={(e) => setCandidateInfo(e.target.value)}
-                            placeholder="CV, kinh nghiệm nổi bật, ghi chú trước phỏng vấn..."
-                        />
-                    </div>
-
-                    <div className="field">
-                        <label htmlFor="scheduled-at">Thời gian phỏng vấn</label>
-                        <input
-                            id="scheduled-at"
-                            type="datetime-local"
-                            value={scheduledAt}
-                            onChange={(e) => setScheduledAt(e.target.value)}
-                            required
-                        />
-                    </div>
-
-                    <div className="field">
-                        <label>Interviewer tham gia</label>
-                        <div className="interviewer-picker">
-                            {interviewers.length === 0 ? (
-                                <p className="field-hint" style={{ margin: 0 }}>
-                                    Chưa có interviewer nào để chọn.
-                                </p>
-                            ) : (
-                                interviewers.map((u) => (
-                                    <label key={u.id} className="interviewer-option">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedInterviewers.includes(u.id)}
-                                            onChange={() => toggleInterviewer(u.id)}
-                                        />
-                                        {u.full_name}
-                                    </label>
-                                ))
-                            )}
-                        </div>
-                    </div>
-
-                    <button
-                        className="btn"
-                        type="submit"
-                        disabled={submitting || jobs.length === 0 || interviewers.length === 0}
-                    >
-                        {submitting ? "Đang tạo..." : "Tạo phiên phỏng vấn"}
-                    </button>
-                    {submitError && (
-                        <div className="notice notice-error" style={{ marginTop: "1rem", marginBottom: 0 }}>
-                            {submitError}
-                        </div>
-                    )}
-                </form>
+                <button type="button" className="btn" onClick={() => setShowCreateForm((v) => !v)}>
+                    {showCreateForm ? "Đóng" : "+ Tạo phiên mới"}
+                </button>
             </div>
 
-            <h2 className="page-heading" style={{ fontSize: "1.15rem", marginTop: "2rem" }}>
-                Danh sách phiên
-            </h2>
+            {showCreateForm && (
+                <div className="card" style={{ marginBottom: "1.5rem" }}>
+                    <h3 style={{ marginTop: 0, fontSize: "1rem" }}>Tạo phiên phỏng vấn mới</h3>
+                    <form onSubmit={handleSubmit}>
+                        <div className="form-grid-2">
+                            <div className="field">
+                                <label htmlFor="session-job">Job</label>
+                                <select
+                                    id="session-job"
+                                    value={jobId}
+                                    onChange={(e) => setJobId(e.target.value)}
+                                    required
+                                    disabled={jobs.length === 0}
+                                >
+                                    {jobs.map((j) => (
+                                        <option key={j.id} value={j.id}>
+                                            {j.title}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="field">
+                                <label htmlFor="candidate-name">Tên ứng viên</label>
+                                <input
+                                    id="candidate-name"
+                                    value={candidateName}
+                                    onChange={(e) => setCandidateName(e.target.value)}
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <div className="form-grid-2">
+                            <div className="field">
+                                <label htmlFor="scheduled-at">Thời gian phỏng vấn</label>
+                                <input
+                                    id="scheduled-at"
+                                    type="datetime-local"
+                                    value={scheduledAt}
+                                    onChange={(e) => setScheduledAt(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="field">
+                                <label htmlFor="candidate-info">Thông tin thêm (tuỳ chọn)</label>
+                                <input
+                                    id="candidate-info"
+                                    value={candidateInfo}
+                                    onChange={(e) => setCandidateInfo(e.target.value)}
+                                    placeholder="CV, kinh nghiệm nổi bật..."
+                                />
+                            </div>
+                        </div>
+
+                        <div className="field">
+                            <label>Interviewer tham gia</label>
+                            <div className="interviewer-picker">
+                                {interviewers.length === 0 ? (
+                                    <p className="field-hint" style={{ margin: 0 }}>
+                                        Chưa có interviewer nào để chọn.
+                                    </p>
+                                ) : (
+                                    interviewers.map((u) => (
+                                        <label key={u.id} className="interviewer-option">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedInterviewers.includes(u.id)}
+                                                onChange={() => toggleInterviewer(u.id)}
+                                            />
+                                            {u.full_name}
+                                        </label>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+                        <button
+                            className="btn"
+                            type="submit"
+                            disabled={submitting || jobs.length === 0 || interviewers.length === 0}
+                        >
+                            {submitting ? "Đang tạo..." : "Tạo phiên phỏng vấn"}
+                        </button>
+                        {submitError && (
+                            <div className="notice notice-error" style={{ marginTop: "1rem", marginBottom: 0 }}>
+                                {submitError}
+                            </div>
+                        )}
+                    </form>
+                </div>
+            )}
+
             {loadError && <div className="notice notice-error">{loadError}</div>}
+
             {loading ? (
                 <p className="field-hint">Đang tải...</p>
             ) : sessions.length === 0 ? (
                 <div className="notice notice-warning">Chưa có phiên phỏng vấn nào.</div>
             ) : (
-                <div className="card">
-                    <table className="user-table">
-                        <thead>
-                            <tr>
-                                <th>Ứng viên</th>
-                                <th>Job</th>
-                                <th>Thời gian</th>
-                                <th>Trạng thái</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {sessions.map((s) => (
-                                <Fragment key={s.id}>
-                                    <tr>
-                                        <td>{s.candidate_name}</td>
-                                        <td>{jobTitle(s.job_id)}</td>
-                                        <td>{formatDateTime(s.scheduled_at)}</td>
-                                        <td>
-                                            <span className={`status-badge ${statusBadgeClass(s.status)}`}>
-                                                {STATUS_LABEL[s.status]}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <button
-                                                type="button"
-                                                className="btn-icon-toggle"
-                                                onClick={() =>
-                                                    setExpandedSessionId((prev) => (prev === s.id ? null : s.id))
-                                                }
-                                            >
-                                                {expandedSessionId === s.id ? "Ẩn chi tiết" : "Chi tiết"}
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    {expandedSessionId === s.id && (
-                                        <tr>
-                                            <td colSpan={5} style={{ padding: "0 0 0.75rem" }}>
-                                                <TranscriptPanel sessionId={s.id} />
-                                                <AggregationPanel sessionId={s.id} canTrigger />
-                                            </td>
-                                        </tr>
-                                    )}
-                                </Fragment>
-                            ))}
-                        </tbody>
-                    </table>
+                <div className="session-workspace">
+                    <div className="session-list-col">
+                        {sessions.map((s) => (
+                            <button
+                                key={s.id}
+                                type="button"
+                                className={`session-list-item ${selectedSessionId === s.id ? "is-selected" : ""}`}
+                                onClick={() => setSelectedSessionId(s.id)}
+                            >
+                                <span className="session-list-name">{s.candidate_name}</span>
+                                <span className="session-list-meta">
+                                    {jobTitle(s.job_id)} · {formatDateTime(s.scheduled_at)}
+                                </span>
+                                <span className={`status-badge ${statusBadgeClass(s.status)}`}>
+                                    {STATUS_LABEL[s.status]}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="session-detail-col">
+                        {selectedSessionId ? (
+                            <>
+                                <TranscriptPanel sessionId={selectedSessionId} />
+                                <AggregationPanel sessionId={selectedSessionId} canTrigger />
+                            </>
+                        ) : (
+                            <div className="detail-placeholder">
+                                Chọn 1 phiên phỏng vấn bên trái để xem transcript và báo cáo tổng hợp.
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
         </div>

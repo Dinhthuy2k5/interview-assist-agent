@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { listSessions } from "../api/sessions";
 import { listJobs } from "../api/jobs";
 import type { Job } from "../types/job";
@@ -26,7 +26,7 @@ export default function CouncilReportPage() {
     const [sessions, setSessions] = useState<Session[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
-    const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+    const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
     function load() {
         setLoading(true);
@@ -61,52 +61,35 @@ export default function CouncilReportPage() {
             ) : sessions.length === 0 ? (
                 <div className="notice notice-warning">Chưa có phiên phỏng vấn nào.</div>
             ) : (
-                <div className="card">
-                    <table className="user-table">
-                        <thead>
-                            <tr>
-                                <th>Ứng viên</th>
-                                <th>Job</th>
-                                <th>Thời gian</th>
-                                <th>Trạng thái</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {sessions.map((s) => (
-                                <Fragment key={s.id}>
-                                    <tr>
-                                        <td>{s.candidate_name}</td>
-                                        <td>{jobTitle(s.job_id)}</td>
-                                        <td>{formatDateTime(s.scheduled_at)}</td>
-                                        <td>
-                                            <span className={`status-badge ${statusBadgeClass(s.status)}`}>
-                                                {STATUS_LABEL[s.status]}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <button
-                                                type="button"
-                                                className="btn-icon-toggle"
-                                                onClick={() =>
-                                                    setExpandedSessionId((prev) => (prev === s.id ? null : s.id))
-                                                }
-                                            >
-                                                {expandedSessionId === s.id ? "Ẩn báo cáo" : "Xem báo cáo"}
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    {expandedSessionId === s.id && (
-                                        <tr>
-                                            <td colSpan={5} style={{ padding: "0 0 0.75rem" }}>
-                                                <AggregationPanel sessionId={s.id} canTrigger={false} />
-                                            </td>
-                                        </tr>
-                                    )}
-                                </Fragment>
-                            ))}
-                        </tbody>
-                    </table>
+                <div className="session-workspace">
+                    <div className="session-list-col">
+                        {sessions.map((s) => (
+                            <button
+                                key={s.id}
+                                type="button"
+                                className={`session-list-item ${selectedSessionId === s.id ? "is-selected" : ""}`}
+                                onClick={() => setSelectedSessionId(s.id)}
+                            >
+                                <span className="session-list-name">{s.candidate_name}</span>
+                                <span className="session-list-meta">
+                                    {jobTitle(s.job_id)} · {formatDateTime(s.scheduled_at)}
+                                </span>
+                                <span className={`status-badge ${statusBadgeClass(s.status)}`}>
+                                    {STATUS_LABEL[s.status]}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="session-detail-col">
+                        {selectedSessionId ? (
+                            <AggregationPanel sessionId={selectedSessionId} canTrigger={false} />
+                        ) : (
+                            <div className="detail-placeholder">
+                                Chọn 1 phiên phỏng vấn bên trái để xem báo cáo tổng hợp.
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
         </div>
