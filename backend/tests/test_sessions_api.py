@@ -147,12 +147,25 @@ def test_non_participant_interviewer_forbidden(client, users, db_session):
     assert response.status_code == 403
 
 
-def test_council_forbidden_from_session_detail(client, users, db_session):
-    """Regression test cho lỗ hổng đã sửa: trước đây mọi role khác interviewer
-    đều lọt qua không kiểm tra, kể cả council."""
+def test_council_can_view_session_detail(client, users, db_session):
+    """Council cần xem câu hỏi đã hỏi để ra quyết định cuối - khác require_session_access
+    (đổi status/transcript), dùng require_session_read_access rộng hơn."""
     session, _, _ = _create_session(client, users, db_session)
 
     response = client.as_user(users["council"]).get(f"/sessions/{session['id']}")
+    assert response.status_code == 200
+    # Council không phải interviewer -> my_notes luôn rỗng, không phải bug.
+    assert response.json()["my_notes"] == []
+
+
+def test_council_cannot_update_session_status(client, users, db_session):
+    """Council xem được chi tiết nhưng KHÔNG được đổi trạng thái vận hành session -
+    require_session_access (khác require_session_read_access) không có Council."""
+    session, _, _ = _create_session(client, users, db_session)
+
+    response = client.as_user(users["council"]).patch(
+        f"/sessions/{session['id']}/status", json={"status": "completed"}
+    )
     assert response.status_code == 403
 
 
@@ -252,7 +265,7 @@ def test_update_status_rejects_invalid_value(client, users, db_session):
     assert response.status_code == 422  # Literal type tự validate ở tầng schema
 
 
-def test_list_sessions_hr_only_and_filter_by_job(client, users, db_session):
+def test_list_sessions_hr_and_council_allowed_interviewer_forbidden(client, users, db_session):
     session1, job1, _ = _create_session(client, users, db_session)
     _session2, _job2, _ = _create_session(client, users, db_session)
 
@@ -264,6 +277,9 @@ def test_list_sessions_hr_only_and_filter_by_job(client, users, db_session):
     assert filtered.status_code == 200
     assert len(filtered.json()) == 1
     assert filtered.json()[0]["id"] == session1["id"]
+
+    council_ok = client.as_user(users["council"]).get("/sessions")
+    assert council_ok.status_code == 200
 
     forbidden = client.as_user(users["interviewer1"]).get("/sessions")
     assert forbidden.status_code == 403

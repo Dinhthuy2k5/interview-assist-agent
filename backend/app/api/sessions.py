@@ -23,6 +23,7 @@ from app.services.session_access import (
     get_session_or_404,
     require_participant,
     require_session_access,
+    require_session_read_access,
 )
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
@@ -75,8 +76,7 @@ def list_sessions(
 ):
     """HR Admin xem toàn bộ session (giám sát chung) hoặc lọc theo job. Council
     cũng cần endpoint này để biết session nào tồn tại trước khi đọc report tổng
-    hợp (GET .../aggregation) - không có nó thì quyền đọc report vô nghĩa vì
-    không cách nào biết session_id. Interviewer dùng /sessions/mine riêng."""
+    hợp / chi tiết session. Interviewer dùng /sessions/mine riêng."""
     query = db.query(InterviewSession)
     if job_id is not None:
         query = query.filter(InterviewSession.job_id == job_id)
@@ -101,7 +101,10 @@ def get_session_detail(
     session_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
     session = get_session_or_404(session_id, db)
-    require_session_access(session_id, user, db)
+    # Dùng bản MỞ HƠN (require_session_read_access) - Council cần xem câu hỏi đã
+    # hỏi để ra quyết định cuối, khác với require_session_access (đổi status,
+    # transcript) vốn không cấp cho Council.
+    require_session_read_access(session_id, user, db)
 
     # Join Criterion để lấy tên + rubric - thiếu 2 field này interviewer không biết
     # chấm điểm dựa trên tiêu chuẩn nào.
@@ -122,6 +125,9 @@ def get_session_detail(
         for q, c in rows
     ]
 
+    # my_notes lọc theo user.id - hr_admin/council không phải interviewer nên
+    # luôn rỗng ở đây (đúng, không phải bug) - họ xem note gốc qua endpoint riêng
+    # GET .../notes (app/api/aggregation.py) sau khi đã có report tổng hợp.
     my_notes = (
         db.query(InterviewerNote)
         .filter(InterviewerNote.session_id == session_id, InterviewerNote.interviewer_id == user.id)
@@ -176,6 +182,8 @@ def update_session_status(
     user: User = Depends(get_current_user),
 ):
     session = get_session_or_404(session_id, db)
+    # Vẫn dùng require_session_access (KHÔNG phải bản _read_access) - Council xem
+    # được chi tiết nhưng không được đổi trạng thái vận hành của session.
     require_session_access(session_id, user, db)
 
     session.status = payload.status

@@ -8,6 +8,7 @@ from app.core.db import get_db
 from app.core.security import hash_password
 from app.models.user import User, UserRole
 from app.schemas.user import UserCreate, UserResponse, UserUpdate
+from app.services.audit import log_action
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -18,7 +19,7 @@ VALID_ROLES = {r.value for r in UserRole}
 def create_user(
     payload: UserCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_role(UserRole.hr_admin)),
+    current: User = Depends(require_role(UserRole.hr_admin)),
 ):
     if payload.role not in VALID_ROLES:
         raise HTTPException(400, f"Role không hợp lệ: {payload.role}")
@@ -33,6 +34,15 @@ def create_user(
         is_active=True,
     )
     db.add(user)
+    db.flush()  # cần user.id trước khi ghi log
+    log_action(
+        db,
+        actor_id=current.id,
+        action="user_created",
+        target_type="user",
+        target_id=str(user.id),
+        detail=f"email={user.email} role={user.role}",
+    )
     db.commit()
     db.refresh(user)
     return user
@@ -61,14 +71,29 @@ def update_user(
     if user.id == current.id and payload.is_active is False:
         raise HTTPException(400, "Không thể tự khoá tài khoản của chính mình")
 
+    changes = []
     if payload.full_name is not None:
         user.full_name = payload.full_name
     if payload.role is not None:
         if payload.role not in VALID_ROLES:
             raise HTTPException(400, f"Role không hợp lệ: {payload.role}")
+        if payload.role != user.role:
+            changes.append(f"role: {user.role} -> {payload.role}")
         user.role = payload.role
     if payload.is_active is not None:
+        if payload.is_active != user.is_active:
+            changes.append(f"is_active: {user.is_active} -> {payload.is_active}")
         user.is_active = payload.is_active
+
+    if changes:
+        log_action(
+            db,
+            actor_id=current.id,
+            action="user_updated",
+            target_type="user",
+            target_id=str(user.id),
+            detail="; ".join(changes),
+        )
 
     db.commit()
     db.refresh(user)
