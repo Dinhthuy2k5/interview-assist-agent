@@ -10,11 +10,12 @@ class Settings(BaseSettings):
     minio_secret_key: str = "changeme"
     minio_bucket: str = "iaa-files"
     anthropic_api_key: str = ""
-    jwt_secret: str = "changeme"
-    jwt_expire_minutes: int = 60
-    env: str = "development"
-    llm_provider: str = "mock"   # "mock" | "anthropic" | "groq"
     groq_api_key: str = ""
+    llm_provider: str = "mock"
+    jwt_secret: str = "changeme"
+    jwt_expire_minutes: int = 30
+    refresh_token_expire_days: int = 30
+    env: str = "development"
 
 
 settings = Settings()

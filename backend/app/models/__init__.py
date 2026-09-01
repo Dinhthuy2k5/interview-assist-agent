@@ -6,6 +6,7 @@ from app.models.decision import SessionDecision
 from app.models.job import Job
 from app.models.llm_usage_log import LlmUsageLog
 from app.models.question import Question
+from app.models.refresh_token import RefreshToken
 from app.models.session import InterviewerNote, InterviewSession, SessionInterviewer, Transcript
 from app.models.user import User
 
@@ -20,6 +21,7 @@ __all__ = [
     "Job",
     "LlmUsageLog",
     "Question",
+    "RefreshToken",
     "SessionDecision",
     "SessionInterviewer",
     "Transcript",
