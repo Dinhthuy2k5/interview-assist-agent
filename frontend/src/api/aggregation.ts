@@ -1,4 +1,4 @@
-import { API_BASE_URL, apiFetch, getStoredToken } from "./client";
+import { API_BASE_URL, apiFetch, getStoredAccessToken } from "./client";
 import type { AggregationReport, RawNote } from "../types/aggregation";
 
 export function triggerAggregate(sessionId: string): Promise<AggregationReport> {
@@ -12,7 +12,7 @@ export function getSessionNotes(sessionId: string): Promise<RawNote[]> {
 /** Trả về null nếu session chưa được tổng hợp (404 - trạng thái BÌNH THƯỜNG) -
  * không dùng apiFetch để tự phân biệt được với lỗi thật (403, 500...). */
 export async function getAggregationReport(sessionId: string): Promise<AggregationReport | null> {
-    const token = getStoredToken();
+    const token = getStoredAccessToken();
     const headers = new Headers();
     if (token) {
         headers.set("Authorization", `Bearer ${token}`);

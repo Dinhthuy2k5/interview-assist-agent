@@ -15,7 +15,7 @@ export default function LoginPage() {
         setError(null);
         try {
             const result = await loginRequest(email, password);
-            login(result.access_token, result.user);
+            login(result.access_token, result.refresh_token, result.user);
         } catch {
             setError("Email hoặc mật khẩu không đúng.");
         } finally {

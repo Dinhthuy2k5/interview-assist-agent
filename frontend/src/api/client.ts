@@ -1,34 +1,96 @@
 export const API_BASE_URL = "http://localhost:8000";
 
-const TOKEN_STORAGE_KEY = "iaa_access_token";
+const ACCESS_TOKEN_KEY = "iaa_access_token";
+const REFRESH_TOKEN_KEY = "iaa_refresh_token";
 
-export function getStoredToken(): string | null {
-    return localStorage.getItem(TOKEN_STORAGE_KEY);
+export function getStoredAccessToken(): string | null {
+    return localStorage.getItem(ACCESS_TOKEN_KEY);
 }
 
-export function setStoredToken(token: string | null): void {
-    if (token) {
-        localStorage.setItem(TOKEN_STORAGE_KEY, token);
+export function getStoredRefreshToken(): string | null {
+    return localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+export function setStoredTokens(accessToken: string | null, refreshToken: string | null): void {
+    if (accessToken) {
+        localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
     } else {
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
+        localStorage.removeItem(ACCESS_TOKEN_KEY);
+    }
+    if (refreshToken) {
+        localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    } else {
+        localStorage.removeItem(REFRESH_TOKEN_KEY);
     }
 }
 
-export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-    const token = getStoredToken();
-    const headers = new Headers(options?.headers);
+// Đảm bảo nhiều request cùng lúc bị 401 chỉ kích hoạt ĐÚNG 1 lần gọi /auth/refresh
+// thật sự - backend dùng cơ chế rotation (refresh_token chỉ dùng được 1 lần),
+// nếu 2 request tự ý refresh riêng lẻ, request thứ 2 sẽ dùng refresh_token ĐÃ BỊ
+// request thứ 1 revoke -> bị từ chối oan, logout nhầm dù phiên vẫn còn hạn.
+let refreshPromise: Promise<string | null> | null = null;
+
+async function performRefresh(): Promise<string | null> {
+    const refreshToken = getStoredRefreshToken();
+    if (!refreshToken) return null;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+        if (!response.ok) return null;
+
+        const data = await response.json();
+        setStoredTokens(data.access_token, data.refresh_token);
+        return data.access_token as string;
+    } catch {
+        return null;
+    }
+}
+
+function refreshAccessToken(): Promise<string | null> {
+    if (!refreshPromise) {
+        refreshPromise = performRefresh().finally(() => {
+            refreshPromise = null;
+        });
+    }
+    return refreshPromise;
+}
+
+function buildHeaders(token: string | null, base?: HeadersInit): Headers {
+    const headers = new Headers(base);
     if (token) {
         headers.set("Authorization", `Bearer ${token}`);
     }
+    return headers;
+}
 
-    const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+    const accessToken = getStoredAccessToken();
+    let response = await fetch(`${API_BASE_URL}${path}`, {
+        ...options,
+        headers: buildHeaders(accessToken, options?.headers),
+    });
 
     if (response.status === 401) {
-        // Token hết hạn/không hợp lệ - xoá và reload để AuthProvider phát hiện
-        // mất token, tự động quay lại màn hình đăng nhập. Đơn giản nhưng chắc
-        // chắn hơn cố gắng điều hướng in-app từ 1 file không phải React component.
-        setStoredToken(null);
-        window.location.reload();
+        // Access token có thể chỉ đơn giản là hết hạn (bình thường, xảy ra mỗi
+        // 30 phút) - thử refresh trước khi coi là mất phiên thật sự.
+        const newAccessToken = await refreshAccessToken();
+
+        if (newAccessToken) {
+            response = await fetch(`${API_BASE_URL}${path}`, {
+                ...options,
+                headers: buildHeaders(newAccessToken, options?.headers),
+            });
+        } else {
+            // Refresh cũng thất bại - refresh_token đã hết hạn/bị revoke/không
+            // còn hợp lệ. Đây mới là lúc thực sự cần đăng nhập lại.
+            setStoredTokens(null, null);
+            window.location.reload();
+            throw new Error("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.");
+        }
     }
 
     if (!response.ok) {
