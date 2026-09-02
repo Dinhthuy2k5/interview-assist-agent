@@ -4,12 +4,16 @@ import { listJobs } from "../api/jobs";
 import type { Job } from "../types/job";
 import type { Session } from "../types/session";
 import AggregationPanel from "../components/AggregationPanel";
+import SessionQuestionsPanel from "../components/SessionQuestionsPanel";
+import DecisionPanel from "../components/DecisionPanel";
 
 const STATUS_LABEL: Record<string, string> = {
     scheduled: "Chưa bắt đầu",
     in_progress: "Đang phỏng vấn",
     completed: "Đã hoàn tất",
 };
+
+type DetailTab = "aggregation" | "questions" | "decision";
 
 function statusBadgeClass(status: string): string {
     if (status === "completed") return "parsed";
@@ -27,6 +31,7 @@ export default function CouncilReportPage() {
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+    const [detailTab, setDetailTab] = useState<DetailTab>("aggregation");
 
     function load() {
         setLoading(true);
@@ -46,13 +51,17 @@ export default function CouncilReportPage() {
         return jobs.find((j) => j.id === id)?.title ?? "(job không xác định)";
     }
 
+    function selectSession(id: string) {
+        setSelectedSessionId(id);
+        setDetailTab("aggregation");
+    }
+
     return (
         <div className="page-content">
             <h1 className="page-heading">Báo cáo đánh giá</h1>
             <p className="page-description">
-                Xem tổng hợp đánh giá từ các interviewer cho từng buổi phỏng vấn. Đây là dữ liệu tư
-                vấn (advisory) - quyết định cuối cùng vẫn do Hội đồng tự cân nhắc dựa trên toàn bộ
-                thông tin, không phải do hệ thống tự động quyết định.
+                Xem tổng hợp đánh giá, câu hỏi đã hỏi, và ghi quyết định cuối cho từng buổi phỏng vấn.
+                Báo cáo tổng hợp là dữ liệu tư vấn (advisory) - quyết định vẫn do Hội đồng tự cân nhắc.
             </p>
 
             {loadError && <div className="notice notice-error">{loadError}</div>}
@@ -68,7 +77,7 @@ export default function CouncilReportPage() {
                                 key={s.id}
                                 type="button"
                                 className={`session-list-item ${selectedSessionId === s.id ? "is-selected" : ""}`}
-                                onClick={() => setSelectedSessionId(s.id)}
+                                onClick={() => selectSession(s.id)}
                             >
                                 <span className="session-list-name">{s.candidate_name}</span>
                                 <span className="session-list-meta">
@@ -83,10 +92,39 @@ export default function CouncilReportPage() {
 
                     <div className="session-detail-col">
                         {selectedSessionId ? (
-                            <AggregationPanel sessionId={selectedSessionId} canTrigger={false} />
+                            <>
+                                <div className="detail-tabs">
+                                    {(
+                                        [
+                                            { key: "aggregation", label: "Báo cáo tổng hợp" },
+                                            { key: "questions", label: "Câu hỏi đã hỏi" },
+                                            { key: "decision", label: "Quyết định" },
+                                        ] as { key: DetailTab; label: string }[]
+                                    ).map((t) => (
+                                        <button
+                                            key={t.key}
+                                            type="button"
+                                            className={`detail-tab ${detailTab === t.key ? "is-active" : ""}`}
+                                            onClick={() => setDetailTab(t.key)}
+                                        >
+                                            {t.label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {detailTab === "aggregation" && (
+                                    <AggregationPanel sessionId={selectedSessionId} canTrigger={false} />
+                                )}
+                                {detailTab === "questions" && (
+                                    <SessionQuestionsPanel sessionId={selectedSessionId} />
+                                )}
+                                {detailTab === "decision" && (
+                                    <DecisionPanel sessionId={selectedSessionId} canSubmit />
+                                )}
+                            </>
                         ) : (
                             <div className="detail-placeholder">
-                                Chọn 1 phiên phỏng vấn bên trái để xem báo cáo tổng hợp.
+                                Chọn 1 phiên phỏng vấn bên trái để xem báo cáo, câu hỏi và ghi quyết định.
                             </div>
                         )}
                     </div>

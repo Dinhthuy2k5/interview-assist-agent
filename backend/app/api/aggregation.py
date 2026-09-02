@@ -6,9 +6,9 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_role
 from app.core.db import get_db
 from app.models.aggregation import AggregationReport
-from app.models.competency import CompetencyFramework
+from app.models.competency import CompetencyFramework, Criterion
 from app.models.job import Job
-from app.models.session import InterviewerNote, SessionInterviewer
+from app.models.session import InterviewerNote
 from app.models.user import UserRole
 from app.schemas.aggregation import AggregationReportResponse, RawNoteResponse
 from app.services.aggregation import (
@@ -17,6 +17,7 @@ from app.services.aggregation import (
     compute_overall_recommendation,
     compute_weighted_average,
     detect_conflict,
+    get_ordered_participants,
     log_llm_usage,
     summarize_conflict,
 )
@@ -43,12 +44,7 @@ def aggregate_session(session_id: uuid.UUID, db: Session = Depends(get_db)):
     # được gán theo enumerate(notes) của TỪNG criterion riêng lẻ - nếu 1 interviewer
     # bỏ sót note ở 1 criterion, "Người phỏng vấn 1" ở 2 criterion có thể là 2 người
     # khác nhau, phá hỏng mục đích ẩn danh nhất quán.
-    participants = (
-        db.query(SessionInterviewer)
-        .filter(SessionInterviewer.session_id == session_id)
-        .order_by(SessionInterviewer.created_at)
-        .all()
-    )
+    participants = get_ordered_participants(session_id, db)
     if not participants:
         raise HTTPException(400, "Session chưa gán interviewer nào")
 
@@ -160,40 +156,39 @@ def get_aggregation_report(session_id: uuid.UUID, db: Session = Depends(get_db))
 @router.get(
     "/{session_id}/notes",
     response_model=list[RawNoteResponse],
-    # Cùng quyền với GET .../aggregation - đây là tính năng bổ trợ trực tiếp cho
-    # report: khi semantic_note không tự tóm tắt được (LLM lỗi) hoặc HR/Council
-    # muốn đối chiếu kỹ hơn con số trung bình, họ CẦN xem được note gốc - trước
-    # đây message gợi ý "xem note gốc" trỏ tới 1 tính năng không tồn tại.
     dependencies=[Depends(require_role(UserRole.hr_admin, UserRole.council))],
 )
-def get_session_notes(session_id: uuid.UUID, db: Session = Depends(get_db)):
-    session = get_session_or_404(session_id, db)
+def get_session_raw_notes(session_id: uuid.UUID, db: Session = Depends(get_db)):
+    """Note gốc của MỌI interviewer trong session - CHỈ hr_admin/council xem được
+    (không phải interviewer, kể cả người tham gia session - giữ nguyên nguyên tắc
+    'mỗi interviewer chỉ thấy note của chính mình' từ Sprint 3, endpoint này dành
+    cho bước review SAU khi có report tổng hợp, không phải trong lúc phỏng vấn).
 
-    job = db.get(Job, session.job_id)
-    framework = db.get(CompetencyFramework, job.framework_id) if job else None
-    criterion_names = {c.id: c.name for c in framework.criteria} if framework else {}
+    interviewer_label dùng ĐÚNG get_ordered_participants + build_interviewer_labels
+    giống hệt aggregate_session() - đảm bảo 'Người phỏng vấn 1' ở đây và ở report
+    luôn là cùng 1 người."""
+    get_session_or_404(session_id, db)
 
-    participants = (
-        db.query(SessionInterviewer)
-        .filter(SessionInterviewer.session_id == session_id)
-        .order_by(SessionInterviewer.created_at)
-        .all()
-    )
+    participants = get_ordered_participants(session_id, db)
+    if not participants:
+        return []
     interviewer_label = build_interviewer_labels([p.interviewer_id for p in participants])
 
-    notes = (
-        db.query(InterviewerNote)
+    rows = (
+        db.query(InterviewerNote, Criterion)
+        .join(Criterion, InterviewerNote.criterion_id == Criterion.id)
         .filter(InterviewerNote.session_id == session_id)
         .all()
     )
-
     return [
         RawNoteResponse(
-            criterion_id=n.criterion_id,
-            criterion_name=criterion_names.get(n.criterion_id, "(tiêu chí không xác định)"),
-            interviewer_label=interviewer_label.get(n.interviewer_id, "Người phỏng vấn (không xác định)"),
-            score=n.score,
-            note_text=n.note_text,
+            criterion_id=note.criterion_id,
+            criterion_name=criterion.name,
+            interviewer_label=interviewer_label.get(
+                note.interviewer_id, "Người phỏng vấn (không xác định)"
+            ),
+            score=note.score,
+            note_text=note.note_text,
         )
-        for n in notes
+        for note, criterion in rows
     ]

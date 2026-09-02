@@ -8,9 +8,18 @@ import UserManagePage from "./pages/UserManagePage";
 import SessionManagePage from "./pages/SessionManagePage";
 import InterviewerSessionsPage from "./pages/InterviewerSessionsPage";
 import CouncilReportPage from "./pages/CouncilReportPage";
+import AuditLogPage from "./pages/AuditLogPage";
 import { ROLE_LABEL, type UserRole } from "./types/user";
 
-type Tab = "jobs" | "job-list" | "frameworks" | "sessions" | "my-sessions" | "reports" | "users";
+type Tab =
+    | "jobs"
+    | "job-list"
+    | "frameworks"
+    | "sessions"
+    | "my-sessions"
+    | "reports"
+    | "users"
+    | "audit-log";
 
 function defaultTabForRole(role: UserRole): Tab {
     if (role === "interviewer") return "my-sessions";
@@ -21,11 +30,8 @@ function defaultTabForRole(role: UserRole): Tab {
 export default function App() {
     const { user, loading, logout } = useAuth();
     // null = người dùng CHƯA tự bấm tab nào - dùng effectiveTab (tính theo role)
-    // làm mặc định. Không dùng useEffect để set tab mặc định sau khi user xuất
-    // hiện - cách đó cần thêm 1 vòng render nữa mới đúng, và có trường hợp vòng
-    // render đó không xảy ra kịp (trang trắng, không request nào được gọi, phải
-    // F5 mới đúng). Tính effectiveTab NGAY trong lần render đầu tiên khi user có
-    // sẵn - không phụ thuộc vòng render thứ 2 nào cả.
+    // làm mặc định, tính đồng bộ ngay trong render đầu tiên (không dùng useEffect
+    // - từng gây trang trắng vì cần thêm 1 vòng render mới đúng, có lúc không kịp).
     const [tab, setTab] = useState<Tab | null>(null);
 
     if (loading) {
@@ -113,6 +119,15 @@ export default function App() {
                             Người dùng
                         </button>
                     )}
+                    {isHrAdmin && (
+                        <button
+                            type="button"
+                            className={`nav-link ${effectiveTab === "audit-log" ? "is-active" : ""}`}
+                            onClick={() => setTab("audit-log")}
+                        >
+                            Nhật ký
+                        </button>
+                    )}
                 </nav>
 
                 <div className="topbar-user">
@@ -130,6 +145,7 @@ export default function App() {
             {isHrAdmin && effectiveTab === "frameworks" && <FrameworkManagePage />}
             {isHrAdmin && effectiveTab === "sessions" && <SessionManagePage />}
             {isHrAdmin && effectiveTab === "users" && <UserManagePage />}
+            {isHrAdmin && effectiveTab === "audit-log" && <AuditLogPage />}
             {isInterviewer && effectiveTab === "my-sessions" && <InterviewerSessionsPage />}
             {isCouncil && effectiveTab === "reports" && <CouncilReportPage />}
         </div>

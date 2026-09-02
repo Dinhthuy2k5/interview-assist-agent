@@ -882,6 +882,41 @@ code {
   gap: 1rem;
   position: sticky;
   top: 1.5rem;
+  /* --- Tab con trong cột chi tiết (Session/Council - Sprint 6) --- */
+.detail-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 1rem;
+  padding-bottom: 0.6rem;
+}
+
+.detail-tab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+}
+
+.detail-tab:hover {
+  background: var(--color-bg);
+}
+
+.detail-tab.is-active {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.detail-tab:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
 }
 
 .session-list-item {

@@ -1,8 +1,8 @@
-import { API_BASE_URL, getStoredToken } from "./client";
+import { API_BASE_URL, getStoredAccessToken } from "./client";
 import type { Transcript } from "../types/transcript";
 
 function authHeaders(): Headers {
-    const token = getStoredToken();
+    const token = getStoredAccessToken();
     const headers = new Headers();
     if (token) {
         headers.set("Authorization", `Bearer ${token}`);

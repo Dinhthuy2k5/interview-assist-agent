@@ -1,4 +1,4 @@
-import { API_BASE_URL, apiFetch, getStoredToken } from "./client";
+import { API_BASE_URL, apiFetch, getStoredAccessToken } from "./client";
 import type { Job, JobStatus } from "../types/job";
 
 export interface CreateJobParams {
@@ -19,7 +19,7 @@ export async function createJob(params: CreateJobParams): Promise<Job> {
         formData.append("application_deadline", params.applicationDeadline);
     }
 
-    const token = getStoredToken();
+    const token = getStoredAccessToken();
     const headers = new Headers();
     if (token) {
         headers.set("Authorization", `Bearer ${token}`);

@@ -7,12 +7,15 @@ import type { Session } from "../types/session";
 import type { User } from "../types/user";
 import TranscriptPanel from "../components/TranscriptPanel";
 import AggregationPanel from "../components/AggregationPanel";
+import DecisionPanel from "../components/DecisionPanel";
 
 const STATUS_LABEL: Record<string, string> = {
     scheduled: "Chưa bắt đầu",
     in_progress: "Đang phỏng vấn",
     completed: "Đã hoàn tất",
 };
+
+type DetailTab = "transcript" | "aggregation" | "decision";
 
 function statusBadgeClass(status: string): string {
     if (status === "completed") return "parsed";
@@ -31,6 +34,7 @@ export default function SessionManagePage() {
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+    const [detailTab, setDetailTab] = useState<DetailTab>("transcript");
 
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [jobId, setJobId] = useState("");
@@ -61,6 +65,11 @@ export default function SessionManagePage() {
         setSelectedInterviewers((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
     }
 
+    function selectSession(id: string) {
+        setSelectedSessionId(id);
+        setDetailTab("transcript");
+    }
+
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         if (selectedInterviewers.length === 0) {
@@ -83,7 +92,7 @@ export default function SessionManagePage() {
             setSelectedInterviewers([]);
             setShowCreateForm(false);
             load();
-            setSelectedSessionId(created.id);
+            selectSession(created.id);
         } catch (e) {
             setSubmitError(e instanceof Error ? e.message : "Tạo phiên phỏng vấn thất bại.");
         } finally {
@@ -101,8 +110,8 @@ export default function SessionManagePage() {
                 <div>
                     <h1 className="page-heading">Phiên phỏng vấn</h1>
                     <p className="page-description" style={{ marginBottom: showCreateForm ? "1.5rem" : 0 }}>
-                        Tạo phiên phỏng vấn, gán interviewer. Chọn 1 phiên bên trái để xem transcript và
-                        báo cáo tổng hợp.
+                        Tạo phiên phỏng vấn, gán interviewer. Chọn 1 phiên bên trái để xem transcript, báo
+                        cáo tổng hợp và quyết định của Hội đồng.
                     </p>
                 </div>
                 <button type="button" className="btn" onClick={() => setShowCreateForm((v) => !v)}>
@@ -217,7 +226,7 @@ export default function SessionManagePage() {
                                 key={s.id}
                                 type="button"
                                 className={`session-list-item ${selectedSessionId === s.id ? "is-selected" : ""}`}
-                                onClick={() => setSelectedSessionId(s.id)}
+                                onClick={() => selectSession(s.id)}
                             >
                                 <span className="session-list-name">{s.candidate_name}</span>
                                 <span className="session-list-meta">
@@ -233,12 +242,36 @@ export default function SessionManagePage() {
                     <div className="session-detail-col">
                         {selectedSessionId ? (
                             <>
-                                <TranscriptPanel sessionId={selectedSessionId} />
-                                <AggregationPanel sessionId={selectedSessionId} canTrigger />
+                                <div className="detail-tabs">
+                                    {(
+                                        [
+                                            { key: "transcript", label: "Transcript" },
+                                            { key: "aggregation", label: "Báo cáo tổng hợp" },
+                                            { key: "decision", label: "Quyết định" },
+                                        ] as { key: DetailTab; label: string }[]
+                                    ).map((t) => (
+                                        <button
+                                            key={t.key}
+                                            type="button"
+                                            className={`detail-tab ${detailTab === t.key ? "is-active" : ""}`}
+                                            onClick={() => setDetailTab(t.key)}
+                                        >
+                                            {t.label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {detailTab === "transcript" && <TranscriptPanel sessionId={selectedSessionId} />}
+                                {detailTab === "aggregation" && (
+                                    <AggregationPanel sessionId={selectedSessionId} canTrigger />
+                                )}
+                                {detailTab === "decision" && (
+                                    <DecisionPanel sessionId={selectedSessionId} canSubmit={false} />
+                                )}
                             </>
                         ) : (
                             <div className="detail-placeholder">
-                                Chọn 1 phiên phỏng vấn bên trái để xem transcript và báo cáo tổng hợp.
+                                Chọn 1 phiên phỏng vấn bên trái để xem chi tiết.
                             </div>
                         )}
                     </div>

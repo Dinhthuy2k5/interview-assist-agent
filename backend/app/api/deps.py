@@ -9,7 +9,6 @@ from app.core.db import get_db
 from app.core.security import decode_access_token
 from app.models.user import User, UserRole
 
-# tokenUrl chỉ dùng để Swagger UI hiển thị nút "Authorize" - không ảnh hưởng logic.
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
@@ -25,8 +24,8 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
     try:
         user = db.get(User, uuid.UUID(user_id))
-    except ValueError:
-        raise credentials_error
+    except ValueError as e:
+        raise credentials_error from e
 
     if user is None or not user.is_active:
         raise credentials_error
@@ -34,10 +33,6 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
 
 def require_role(*roles: UserRole):
-    """Dependency factory chặn endpoint theo role. Dùng:
-    Depends(require_role(UserRole.hr_admin))
-    Depends(require_role(UserRole.hr_admin, UserRole.council))"""
-
     allowed = {r.value for r in roles}
 
     def checker(user: User = Depends(get_current_user)) -> User:

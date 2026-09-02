@@ -27,6 +27,23 @@ def build_interviewer_labels(interviewer_ids: list[uuid.UUID]) -> dict[uuid.UUID
     transaction, không phân biệt được thứ tự insert thật)."""
     return {interviewer_id: f"Người phỏng vấn {i + 1}" for i, interviewer_id in enumerate(interviewer_ids)}
 
+def get_ordered_participants(session_id: uuid.UUID, db) -> list:
+    """order_by created_at + id (tie-break): Postgres func.now() trả CÙNG 1 giá
+    trị cho mọi statement trong 1 transaction - nhiều SessionInterviewer tạo cùng
+    lúc (đúng trường hợp thực tế khi POST /sessions) chỉ order theo created_at
+    không đảm bảo thứ tự ổn định giữa các lần query khác nhau. Tách hàm này để
+    aggregate_session() và endpoint GET .../notes DÙNG CHUNG - nếu 2 nơi tự viết
+    order_by riêng, dễ lệch nhau và "Người phỏng vấn 1" ở report với ở note gốc
+    lại là 2 người khác nhau."""
+    from app.models.session import SessionInterviewer
+
+    return (
+        db.query(SessionInterviewer)
+        .filter(SessionInterviewer.session_id == session_id)
+        .order_by(SessionInterviewer.created_at, SessionInterviewer.id)
+        .all()
+    )
+
 
 def detect_conflict(scores: list[int], note_texts: list[str]) -> tuple[bool, str | None]:
     """Trả về (has_conflict, conflict_type). conflict_type: 'rule_based' | 'embedding' | None.
