@@ -4,7 +4,7 @@
 
 | Service | Trạng thái | Sprint |
 |---|---|---|
-| Auth (JWT + RBAC) | ✅ Đã có | 3, rà soát toàn bộ ở 6 |
+| Auth (JWT + Refresh Token + RBAC) | ✅ Đã có | 3, rà soát toàn bộ ở 6, nâng cấp refresh token sau MVP |
 | JD Parse Service | ✅ Đã có | 1 |
 | Question Gen Service | ✅ Đã có | 2 |
 | Session & Note Service | ✅ Đã có | 3 |
@@ -17,15 +17,37 @@
 test thật, không còn mục nào ở trạng thái kế hoạch.
 
 Auth bổ sung 1 lớp kiểm tra trước khi request chạm tới các service ở trên: mọi
-endpoint (trừ `/health`, `/auth/login`) đều qua `get_current_user` (giải mã JWT,
-load `User`, kiểm tra `is_active`) và phần lớn còn qua `require_role(...)` chặn
-theo đúng role cần thiết (VD: chỉ `hr_admin` tạo được Job/Framework/Session; chỉ
-interviewer được gán mới đọc/ghi note của session đó; Council đọc được chi tiết
-session + report tổng hợp nhưng không đổi được trạng thái session hay đụng
-transcript). Sprint 6 rà soát lại toàn bộ endpoint theo bảng actor gốc — phần lớn
-đã đúng nhờ các lần fix tích luỹ ở Sprint 3-5, đặc biệt việc gom logic phân quyền
-session vào `app/services/session_access.py` dùng chung thay vì lặp lại ở từng
-router (tránh tái diễn lỗi thiếu nhánh `elif` từng gặp phải).
+endpoint (trừ `/health`, `/auth/login`, `/auth/refresh`) đều qua `get_current_user`
+(giải mã JWT, load `User`, kiểm tra `is_active`) và phần lớn còn qua
+`require_role(...)` chặn theo đúng role cần thiết (VD: chỉ `hr_admin` tạo được
+Job/Framework/Session; chỉ interviewer được gán mới đọc/ghi note của session đó;
+Council đọc được chi tiết session + report tổng hợp nhưng không đổi được trạng
+thái session hay đụng transcript). Sprint 6 rà soát lại toàn bộ endpoint theo
+bảng actor gốc — phần lớn đã đúng nhờ các lần fix tích luỹ ở Sprint 3-5, đặc biệt
+việc gom logic phân quyền session vào `app/services/session_access.py` dùng
+chung thay vì lặp lại ở từng router (tránh tái diễn lỗi thiếu nhánh `elif` từng
+gặp phải).
+
+**Sau MVP: nâng cấp access token + refresh token.** JWT (`access_token`) trước
+đây là cơ chế xác thực duy nhất, hạn dùng cố định (`jwt_expire_minutes`) và không
+thể thu hồi giữa chừng (JWT tự thân không lưu trạng thái). Nâng cấp thêm
+`refresh_token` (random string, lưu **hash SHA-256** trong bảng `refresh_token`,
+không lưu token gốc — cùng nguyên tắc với `password_hash`):
+
+- `access_token` giữ hạn **ngắn** (30 phút) — giới hạn thiệt hại nếu bị lộ, vì
+  không thể thu hồi giữa chừng.
+- `refresh_token` dùng để cấp `access_token` mới qua `POST /auth/refresh`, có
+  **rotation**: mỗi lần refresh thành công, token cũ bị revoke ngay và cấp token
+  mới — 1 refresh token chỉ dùng được đúng 1 lần.
+- **Phát hiện refresh token bị dùng lại** (`revoked_at` đã có giá trị mà vẫn bị
+  gọi) — dấu hiệu token có thể đã bị đánh cắp. Xử lý: revoke **toàn bộ** refresh
+  token còn sống của user đó, buộc đăng nhập lại ở mọi thiết bị, không chỉ báo
+  lỗi đơn thuần.
+- `POST /auth/logout` revoke refresh token — đây là cách "đăng xuất" có hiệu lực
+  thật sự (access_token cũ, nếu còn hạn, vẫn dùng được tới khi tự hết hạn — chấp
+  nhận được vì hạn ngắn).
+- Cả 2 hành vi bất thường (`refresh_token_reuse_detected`, `logout`) đều được
+  ghi vào Audit Log.
 
 ## Tổng quan
 
@@ -215,6 +237,34 @@ sequenceDiagram
     DEC-->>Council: Quyết định đã ghi (hiện tên thật, không ẩn danh)
 
     Note over DEC: AggregationReport KHÔNG bao giờ ghi được vào đây -<br/>chỉ role council mới gọi được endpoint POST decision
+```
+
+## Luồng Auth — access token + refresh token (sau MVP)
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant Auth as Auth Service
+    participant DB as PostgreSQL
+
+    C->>Auth: POST /auth/login
+    Auth->>DB: Lưu hash(refresh_token) mới
+    Auth-->>C: access_token (30 phút) + refresh_token
+
+    Note over C: access_token hết hạn
+    C->>Auth: POST /auth/refresh (refresh_token)
+    Auth->>DB: Tìm theo hash - chưa revoke, chưa hết hạn?
+    Auth->>DB: Revoke token cũ, lưu hash(refresh_token mới)
+    Auth-->>C: access_token mới + refresh_token mới (rotation)
+
+    Note over Auth: Nếu refresh_token ĐÃ revoke mà vẫn bị gọi lại
+    Auth->>DB: Revoke TOÀN BỘ refresh_token còn sống của user
+    Auth->>DB: Ghi audit_log "refresh_token_reuse_detected"
+    Auth-->>C: 401 - bắt đăng nhập lại ở mọi thiết bị
+
+    C->>Auth: POST /auth/logout (refresh_token)
+    Auth->>DB: Revoke refresh_token này
+    Auth-->>C: 204 (idempotent - không lộ token có tồn tại hay không)
 ```
 
 ## Liên quan

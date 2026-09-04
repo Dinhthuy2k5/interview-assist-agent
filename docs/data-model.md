@@ -19,6 +19,25 @@ tiên khi mới deploy).
 | is_active | Boolean, default true | HR khoá tài khoản mà không xoá dữ liệu liên quan |
 | created_at / updated_at | DateTime | |
 
+## `refresh_token` (sau MVP)
+Cho phép cấp lại `access_token` mới mà không cần đăng nhập lại, đồng thời là cơ
+chế **duy nhất** thực sự "đăng xuất" được — `access_token` (JWT) tự thân không
+lưu trạng thái, không thể thu hồi giữa chừng trước khi hết hạn.
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| id | UUID PK | |
+| user_id | UUID FK → user, CASCADE | |
+| token_hash | String(64), unique, index | SHA-256 — lưu hash, không lưu token gốc (cùng nguyên tắc `password_hash`) |
+| expires_at | DateTime(timezone=True), NOT NULL | |
+| revoked_at | DateTime(timezone=True), nullable | Khác `None` = đã vô hiệu hoá (logout, hoặc đã "xoay vòng" sau 1 lần refresh) |
+| created_at / updated_at | DateTime | |
+
+**Rotation**: mỗi lần refresh thành công, token cũ bị revoke ngay, cấp token mới
+— 1 refresh token chỉ dùng được đúng 1 lần. Nếu 1 token đã `revoked_at` mà vẫn bị
+dùng lại — dấu hiệu bị đánh cắp — hệ thống revoke **toàn bộ** token còn sống của
+user đó, không chỉ riêng token bị dùng lại.
+
 ## `competency_framework`, `criterion`, `question`, `llm_usage_log`
 
 Không đổi so với Sprint 0-2, xem lịch sử file này qua git nếu cần đối chiếu chi tiết
@@ -140,7 +159,7 @@ Nhật ký hành động nhạy cảm không thuộc về 1 service nghiệp v�
 |---|---|---|
 | id | UUID PK | |
 | actor_id | UUID FK → user, nullable | null cho `login_failed` chưa xác định được actor |
-| action | String(50) | login_success / login_failed / user_created / user_updated / decision_created |
+| action | String(50) | login_success / login_failed / logout / refresh_token_reuse_detected / user_created / user_updated / decision_created |
 | target_type / target_id | String, nullable | |
 | detail | Text, nullable | Không bao giờ ghi password |
 | created_at | DateTime(timezone=True) | **Không có `updated_at`** - log bất biến, không ai được sửa 1 dòng đã ghi |

@@ -53,6 +53,10 @@ Trong `.env`, cần điền/đổi:
   tier, khuyến nghị cho dev; `LLM_PROVIDER=mock` để dev không gọi LLM thật)
 - `JWT_SECRET` — **bắt buộc đổi** thành chuỗi random dài, không giữ giá trị mặc
   định (`python -c "import secrets; print(secrets.token_hex(32))"`)
+- `JWT_EXPIRE_MINUTES` (mặc định 30) — thời hạn `access_token`, cố tình ngắn vì
+  không thể thu hồi giữa chừng
+- `REFRESH_TOKEN_EXPIRE_DAYS` — thời hạn `refresh_token` (dùng để cấp lại
+  `access_token` qua `POST /auth/refresh`, có rotation + phát hiện reuse)
 
 ```bash
 docker compose up --build

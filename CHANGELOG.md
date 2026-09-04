@@ -3,6 +3,20 @@
 Ghi lại theo sprint, không theo từng commit riêng lẻ — mỗi mục là 1 khả năng hoàn
 chỉnh đã có migration + API + test (nếu là backend) hoặc UI thật (nếu là frontend).
 
+## Post-MVP — Access Token + Refresh Token Rotation
+
+**Backend**
+- `refresh_token`: nâng cấp từ JWT đơn thuần (không thu hồi được giữa chừng)
+  sang cặp `access_token` (30 phút) + `refresh_token` (dài hạn, lưu hash SHA-256
+  trong DB, không lưu token gốc).
+- Rotation: mỗi lần `POST /auth/refresh` thành công, revoke token cũ, cấp token
+  mới — 1 refresh token chỉ dùng đúng 1 lần.
+- Phát hiện refresh token bị dùng lại sau khi đã revoke (dấu hiệu bị đánh cắp) —
+  revoke toàn bộ token còn sống của user, buộc đăng nhập lại mọi thiết bị.
+- `POST /auth/logout` — cách "đăng xuất" có hiệu lực thật (revoke refresh token),
+  idempotent, không lộ thông tin token có tồn tại hay không.
+- Audit log thêm 2 action: `logout`, `refresh_token_reuse_detected`.
+
 ## Sprint 6 — Decision Service + RBAC hoàn chỉnh + Audit Log
 
 **Backend**
