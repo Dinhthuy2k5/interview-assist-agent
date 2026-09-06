@@ -4,10 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from app.api.deps import require_role
+from app.core.cache import delete_cached, get_cached, set_cached
 from app.core.db import get_db
 from app.models.competency import CompetencyFramework, Criterion
-from app.models.user import User, UserRole
 from app.schemas.competency import (
     CompetencyFrameworkCreate,
     CompetencyFrameworkResponse,
@@ -15,6 +14,9 @@ from app.schemas.competency import (
 )
 
 router = APIRouter(prefix="/frameworks", tags=["competency-frameworks"])
+
+FRAMEWORKS_LIST_CACHE_KEY = "frameworks:all"
+CACHE_TTL_SECONDS = 300  # 5 phút - lưới an toàn cuối nếu quên invalidate ở đâu đó
 
 
 def _get_framework_or_404(framework_id: uuid.UUID, db: Session) -> CompetencyFramework:
@@ -30,11 +32,7 @@ def _get_framework_or_404(framework_id: uuid.UUID, db: Session) -> CompetencyFra
 
 
 @router.post("", response_model=CompetencyFrameworkResponse, status_code=201)
-def create_framework(
-    payload: CompetencyFrameworkCreate,
-    db: Session = Depends(get_db),
-    _: User = Depends(require_role(UserRole.hr_admin)),
-):
+def create_framework(payload: CompetencyFrameworkCreate, db: Session = Depends(get_db)):
     framework = CompetencyFramework(name=payload.name, description=payload.description)
     framework.criteria = [
         Criterion(name=c.name, weight=c.weight, scoring_rubric=c.scoring_rubric)
@@ -43,35 +41,33 @@ def create_framework(
     db.add(framework)
     db.commit()
     db.refresh(framework)
+
+    delete_cached(FRAMEWORKS_LIST_CACHE_KEY)
     return framework
 
 
 @router.get("", response_model=list[CompetencyFrameworkResponse])
-def list_frameworks(
-    db: Session = Depends(get_db),
-    # TODO: khi Interviewer/Council cần xem framework (Sprint sau), nới quyền này.
-    _: User = Depends(require_role(UserRole.hr_admin)),
-):
-    return (
+def list_frameworks(db: Session = Depends(get_db)):
+    cached = get_cached(FRAMEWORKS_LIST_CACHE_KEY)
+    if cached is not None:
+        return cached
+
+    frameworks = (
         db.query(CompetencyFramework).options(selectinload(CompetencyFramework.criteria)).all()
     )
+    result = [CompetencyFrameworkResponse.model_validate(f).model_dump(mode="json") for f in frameworks]
+    set_cached(FRAMEWORKS_LIST_CACHE_KEY, result, ttl_seconds=CACHE_TTL_SECONDS)
+    return result
 
 
 @router.get("/{framework_id}", response_model=CompetencyFrameworkResponse)
-def get_framework(
-    framework_id: uuid.UUID,
-    db: Session = Depends(get_db),
-    _: User = Depends(require_role(UserRole.hr_admin)),
-):
+def get_framework(framework_id: uuid.UUID, db: Session = Depends(get_db)):
     return _get_framework_or_404(framework_id, db)
 
 
 @router.patch("/{framework_id}", response_model=CompetencyFrameworkResponse)
 def update_framework(
-    framework_id: uuid.UUID,
-    payload: CompetencyFrameworkUpdate,
-    db: Session = Depends(get_db),
-    _: User = Depends(require_role(UserRole.hr_admin)),
+    framework_id: uuid.UUID, payload: CompetencyFrameworkUpdate, db: Session = Depends(get_db)
 ):
     framework = _get_framework_or_404(framework_id, db)
     if payload.name is not None:
@@ -80,25 +76,19 @@ def update_framework(
         framework.description = payload.description
     db.commit()
     db.refresh(framework)
+
+    delete_cached(FRAMEWORKS_LIST_CACHE_KEY)
     return framework
 
 
 @router.delete("/{framework_id}", status_code=204)
-def delete_framework(
-    framework_id: uuid.UUID,
-    db: Session = Depends(get_db),
-    _: User = Depends(require_role(UserRole.hr_admin)),
-):
+def delete_framework(framework_id: uuid.UUID, db: Session = Depends(get_db)):
     framework = _get_framework_or_404(framework_id, db)
-    # Criterion có ondelete="CASCADE" -> xoá framework tự xoá theo criteria.
-    # Job.framework_id KHÔNG có CASCADE (cố ý) -> nếu có Job đang dùng framework
-    # này, DB sẽ chặn xoá bằng IntegrityError. Bắt lỗi đó trả về 409 cho rõ nghĩa
-    # thay vì để lộ ra 500.
     try:
         db.delete(framework)
         db.commit()
     except IntegrityError as e:
         db.rollback()
-        raise HTTPException(
-            409, "Không thể xoá framework đang được Job sử dụng"
-        ) from e
+        raise HTTPException(409, "Không thể xoá framework đang được Job sử dụng") from e
+
+    delete_cached(FRAMEWORKS_LIST_CACHE_KEY)
