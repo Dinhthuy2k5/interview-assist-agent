@@ -11,6 +11,8 @@ from app.api.questions import router as questions_router
 from app.api.sessions import router as sessions_router
 from app.api.transcripts import router as transcripts_router
 from app.api.users import router as users_router
+import os
+import socket
 
 app = FastAPI(
     title="Interview Assist Agent API",
@@ -39,4 +41,8 @@ app.include_router(decisions_router)
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "service": "interview-assist-agent-backend"}
+        return {
+            "status": "ok",
+            "service": "interview-assist-agent-backend",
+            "server_id": socket.gethostname(), 
+        }

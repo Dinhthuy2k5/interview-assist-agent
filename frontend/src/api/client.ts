@@ -1,4 +1,7 @@
-export const API_BASE_URL = "http://localhost:8000";
+// Trỏ qua Traefik (port 80, cửa ngõ duy nhất) thay vì thẳng 1 backend instance
+// cố định (":8000") - nếu giữ ":8000", frontend luôn gọi đúng 1 container, bỏ
+// qua hoàn toàn load balancer, --scale backend=3 sẽ vô nghĩa với frontend.
+export const API_BASE_URL = "http://localhost";
 
 const ACCESS_TOKEN_KEY = "iaa_access_token";
 const REFRESH_TOKEN_KEY = "iaa_refresh_token";
