@@ -1,3 +1,5 @@
+import { ApiError, parseApiErrorMessage } from "../utils/errors";
+
 // Trỏ qua Traefik (port 80, cửa ngõ duy nhất) thay vì thẳng 1 backend instance
 // cố định (":8000") - nếu giữ ":8000", frontend luôn gọi đúng 1 container, bỏ
 // qua hoàn toàn load balancer, --scale backend=3 sẽ vô nghĩa với frontend.
@@ -98,7 +100,8 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
 
     if (!response.ok) {
         const body = await response.text();
-        throw new Error(`API error ${response.status}: ${body}`);
+        const friendlyMsg = parseApiErrorMessage(body, response.status);
+        throw new ApiError(response.status, friendlyMsg, body);
     }
     return response.json() as Promise<T>;
 }
