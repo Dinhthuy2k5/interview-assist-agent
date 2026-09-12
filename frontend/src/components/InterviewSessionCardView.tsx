@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getSessionDetail, updateSessionStatus, upsertNote } from "../api/sessions";
 import type { SessionDetail } from "../types/session";
 import { parseRubric } from "../utils/rubric";
+import { useToast } from "../contexts/ToastContext";
 import TranscriptPanel from "./TranscriptPanel";
 
 interface Props {
@@ -15,6 +16,7 @@ interface DraftNote {
 }
 
 export default function InterviewSessionCardView({ sessionId, onBack }: Props) {
+    const toast = useToast();
     const [detail, setDetail] = useState<SessionDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
@@ -106,9 +108,12 @@ export default function InterviewSessionCardView({ sessionId, onBack }: Props) {
                 note_text: draft.noteText || null,
             });
             setSavedIds((prev) => new Set(prev).add(current.criterion_id));
+            toast.success(`Đã lưu đánh giá: ${current.criterion_name}`);
             return true;
-        } catch {
-            setSaveError("Lưu note thất bại, thử lại.");
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : "Lưu note thất bại, thử lại.";
+            setSaveError(msg);
+            toast.error(msg);
             return false;
         } finally {
             setSaving(false);
@@ -130,6 +135,7 @@ export default function InterviewSessionCardView({ sessionId, onBack }: Props) {
         if (!ok) return;
         try {
             await updateSessionStatus(sessionId, "completed");
+            toast.success("Buổi phỏng vấn đã hoàn tất thành công!");
         } catch {
             // best-effort - không chặn interviewer nếu chỉ lỗi update status
         }

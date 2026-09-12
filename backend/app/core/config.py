@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 30
     refresh_token_expire_days: int = 30
     env: str = "development"
+    redis_url: str = "redis://localhost:6379/0"
 
 
 settings = Settings()

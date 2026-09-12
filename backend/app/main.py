@@ -1,3 +1,5 @@
+import socket
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -39,4 +41,8 @@ app.include_router(decisions_router)
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "service": "interview-assist-agent-backend"}
+        return {
+            "status": "ok",
+            "service": "interview-assist-agent-backend",
+            "server_id": socket.gethostname(), 
+        }

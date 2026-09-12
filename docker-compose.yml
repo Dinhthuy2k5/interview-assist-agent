@@ -36,24 +36,75 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: iaa-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  traefik:
+    image: traefik:v3.1
+    container_name: iaa-traefik
+    restart: unless-stopped
+    command:
+      # Đọc cấu hình routing trực tiếp từ Docker labels - không cần file config
+      # tĩnh liệt kê từng backend, tự phát hiện container mới khi --scale.
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      # Dashboard để xem trực quan instance nào healthy - hữu ích lúc học.
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+    ports:
+      - "80:80" # Cửa ngõ duy nhất vào backend từ giờ
+      - "8080:8080" # Dashboard - http://localhost:8080/dashboard/
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - backend
+
   backend:
     build:
       context: ./backend
-    container_name: iaa-backend
     restart: unless-stopped
     env_file:
       - .env
     environment:
       DATABASE_URL: postgresql://iaa_user:changeme@postgres:5432/interview_assist_agent
       MINIO_ENDPOINT: minio:9000
-    ports:
-      - "8000:8000"
+      # KHÔNG còn "ports: - 8000:8000" - bắt buộc bỏ, nếu không --scale backend=3
+      # sẽ lỗi "port already in use" ở replica thứ 2, thứ 3 (không thể 3 container
+      # cùng bind port 8000 trên host). Traefik nói chuyện với backend qua mạng
+      # nội bộ Docker (port 8000 vẫn mở NỘI BỘ, chỉ không expose ra host nữa).
+      #
+      # LƯU Ý: bỏ container_name cố định "iaa-backend" - --scale không dùng được
+      # cùng lúc với container_name cố định (Docker Compose báo lỗi trùng tên),
+      # để Compose tự đặt tên (vd. iaa-backend-1, iaa-backend-2, iaa-backend-3).
+      REDIS_URL: redis://redis:6379/0
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.entrypoints=web"
+      - "traefik.http.routers.backend.rule=PathPrefix(`/`)"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+      # Active health check - Traefik tự gọi GET /health định kỳ, loại instance
+      # không trả 200 ra khỏi vòng round-robin, tự thêm lại khi sống lại.
+      - "traefik.http.services.backend.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.backend.loadbalancer.healthcheck.interval=5s"
+      - "traefik.http.services.backend.loadbalancer.healthcheck.timeout=3s"
     volumes:
       - ./backend/app:/app/app
     depends_on:
       postgres:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   frontend:
