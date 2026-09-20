@@ -55,12 +55,20 @@ services:
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
 
   frontend:
+    build:
+      context: ./frontend
+      # Dùng Dockerfile.prod (Nginx) thay vì Dockerfile (Vite dev server).
+      # - Không cần VITE_ALLOWED_HOST nữa (Nginx không có hạn chế này)
+      # - Tiết kiệm ~200MB RAM (Nginx ~40MB vs Node + Vite ~250MB)
+      # - Phục vụ static files nhanh hơn đáng kể
+      dockerfile: Dockerfile.prod
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.rule=Host(`ngdinhthuy.duckdns.org`)"
       - "traefik.http.routers.frontend.tls=true"
       - "traefik.http.routers.frontend.tls.certresolver=myresolver"
-      # Priority thấp hơn backend - chỉ match khi không có path API nào khớp
       - "traefik.http.routers.frontend.priority=1"
-      - "traefik.http.services.frontend.loadbalancer.server.port=5173"
+      # Nginx listen trên port 80 bên trong container (khác dev server port 5173)
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+
