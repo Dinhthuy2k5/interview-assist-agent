@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.core.config import settings
 from app.core.db import get_db
+from app.core.rate_limit import RateLimiter
 from app.core.security import (
     create_access_token,
     generate_refresh_token,
@@ -39,7 +40,10 @@ def _issue_tokens(db: Session, user: User) -> tuple[str, str]:
     return access_token, raw_refresh
 
 
-@router.post("/auth/login", response_model=LoginResponse)
+login_limiter = RateLimiter(scope="login", key_type="ip")
+
+
+@router.post("/auth/login", response_model=LoginResponse, dependencies=[Depends(login_limiter)])
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not user.is_active or not verify_password(form_data.password, user.password_hash):

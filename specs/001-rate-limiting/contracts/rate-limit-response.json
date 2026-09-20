@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RateLimitErrorResponse",
+  "type": "object",
+  "properties": {
+    "detail": {
+      "type": "string",
+      "example": "Rate limit exceeded. Please retry after 45 seconds."
+    }
+  },
+  "required": ["detail"]
+}

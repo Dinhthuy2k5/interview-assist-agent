@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.core.db import get_db
+from app.core.rate_limit import RateLimiter
 from app.core.storage import upload_file
 from app.models.session import Transcript
 from app.models.user import User
@@ -17,6 +18,7 @@ from app.services.stt import TranscriptionError, transcribe_audio
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/sessions", tags=["transcripts"])
+transcripts_limiter = RateLimiter(scope="transcripts", key_type="user")
 
 ALLOWED_AUDIO_EXTENSIONS = (".mp3", ".wav", ".m4a", ".webm", ".ogg")
 # STT chạy đồng bộ trong request (quyết định thiết kế Sprint 4) - giới hạn dung
@@ -26,7 +28,12 @@ MAX_AUDIO_BYTES = 300 * 1024 * 1024  # ~300MB
 RETENTION_DAYS = 180
 
 
-@router.post("/{session_id}/transcript", response_model=TranscriptResponse, status_code=201)
+@router.post(
+    "/{session_id}/transcript",
+    response_model=TranscriptResponse,
+    status_code=201,
+    dependencies=[Depends(transcripts_limiter)],
+)
 async def upload_transcript_audio(
     session_id: uuid.UUID,
     file: UploadFile = File(...),

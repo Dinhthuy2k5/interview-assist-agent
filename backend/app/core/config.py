@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 30
     env: str = "development"
     redis_url: str = "redis://localhost:6379/0"
+    rate_limit_enabled: bool = True
+    rate_limit_login_per_minute: int = 5
+    rate_limit_ai_per_minute: int = 20
 
 
 settings = Settings()

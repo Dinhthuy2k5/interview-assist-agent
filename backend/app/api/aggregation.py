@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import require_role
 from app.core.db import get_db
+from app.core.rate_limit import RateLimiter
 from app.models.aggregation import AggregationReport
 from app.models.competency import CompetencyFramework, Criterion
 from app.models.job import Job
@@ -24,12 +25,13 @@ from app.services.aggregation import (
 from app.services.session_access import get_session_or_404
 
 router = APIRouter(prefix="/sessions", tags=["aggregation"])
+aggregation_limiter = RateLimiter(scope="aggregation", key_type="user")
 
 
 @router.post(
     "/{session_id}/aggregate",
     response_model=AggregationReportResponse,
-    dependencies=[Depends(require_role(UserRole.hr_admin))],
+    dependencies=[Depends(require_role(UserRole.hr_admin)), Depends(aggregation_limiter)],
 )
 def aggregate_session(session_id: uuid.UUID, db: Session = Depends(get_db)):
     session = get_session_or_404(session_id, db)

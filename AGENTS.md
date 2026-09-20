@@ -10,6 +10,7 @@
 8. **Process (Doc Integrity)**: Bảo toàn docstrings, type annotations và comments giải thích kiến trúc khi refactor.
 9. **Meta Rule**: Cập nhật thêm 1 quy tắc vào mục "Lessons Learned" bên dưới mỗi khi Agent làm điều gì không nên lặp lại.
 10. **State Management**: Giữ backend stateless; chia sẻ cache và rate-limit qua Redis; refresh token phải hash SHA-256 kèm cơ chế rotation.
+11. **Hard Rule (Security)**: Chống IDOR bằng cách kiểm tra quyền sở hữu/role trên mọi API; dùng Pydantic v2 + SQLAlchemy parameterized (chống SQLi/XSS); upload file bắt buộc kiểm tra magic bytes, lưu UUID trên MinIO bucket private; dữ liệu đưa vào LLM bắt buộc bọc delimiter chống prompt injection; không hardcode secrets; rate-limiting qua Redis trên các endpoint nhạy cảm.
 
 ---
 

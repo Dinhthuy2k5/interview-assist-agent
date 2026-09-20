@@ -1,206 +1,64 @@
-\---
-
+---
 name: project-development
-
-description: Use this skill when developing, reviewing, debugging, testing, refactoring, or designing features for the Interview Assist Agent project. Follow the project's existing architecture and avoid unnecessary changes.
-
-\---
-
-
-
-\# Interview Assist Agent - Development Skill
-
-
-
-\## General Rules
-
-
-
-\- Understand the existing code before modifying it.
-
-\- Do not rewrite entire files when a targeted change is sufficient.
-
-\- Do not modify unrelated files.
-
-\- Preserve the existing architecture unless there is a clear reason to change it.
-
-\- Prefer simple, maintainable solutions over unnecessary abstractions.
-
-\- Before implementing a feature, identify the affected components and data flow.
-
-\- After making changes, verify the affected functionality.
-
-
-
-\## Backend
-
-
-
-When working on the backend:
-
-
-
-\- Follow the existing Spring Boot architecture.
-
-\- Keep Controller responsible for HTTP/API concerns.
-
-\- Keep business logic in Service classes.
-
-\- Keep database access in Repository classes.
-
-\- Use DTOs for API request/response when the project architecture uses DTOs.
-
-\- Prefer constructor injection.
-
-\- Use @Transactional at appropriate service boundaries.
-
-\- Avoid unnecessary database queries.
-
-\- Pay attention to JPA lazy/eager loading and N+1 query problems.
-
-\- Use meaningful exception handling.
-
-\- Do not expose sensitive information in API responses.
-
-\- Preserve existing API contracts unless the task explicitly requires changing them.
-
-
-
-\## Database
-
-
-
-When modifying database-related code:
-
-
-
-\- Inspect existing entities and schema before changing them.
-
-\- Consider indexes for frequently queried columns.
-
-\- Avoid unnecessary joins and repeated queries.
-
-\- Consider transaction boundaries and consistency.
-
-\- Do not change database schema casually.
-
-\- Check whether a migration is required.
-
-
-
-\## Frontend
-
-
-
-When working on React:
-
-
-
-\- Follow the existing component structure.
-
-\- Keep components focused.
-
-\- Reuse existing components and utilities when possible.
-
-\- Avoid unnecessary global state.
-
-\- Handle loading, error, and empty states.
-
-\- Do not introduce a new library when existing dependencies can solve the problem.
-
-\- Keep API communication consistent with the existing project.
-
-
-
-\## API
-
-
-
-When creating or modifying APIs:
-
-
-
-\- Follow REST conventions used by the existing project.
-
-\- Use appropriate HTTP status codes.
-
-\- Validate incoming data.
-
-\- Return consistent response structures.
-
-\- Handle authentication and authorization consistently.
-
-\- Do not expose internal implementation details.
-
-
-
-\## Docker
-
-
-
-When modifying Docker configuration:
-
-
-
-\- Inspect existing Dockerfiles and docker-compose configuration first.
-
-\- Do not expose unnecessary ports.
-
-\- Keep secrets out of Dockerfiles and source code.
-
-\- Prefer environment variables for configuration.
-
-\- Ensure services can communicate using Docker service names rather than hard-coded container IPs.
-
-
-
-\## Testing
-
-
-
-After implementation:
-
-
-
-1\. Run the relevant tests.
-
-2\. Check compilation/build errors.
-
-3\. Check API behavior when applicable.
-
-4\. Check frontend build when frontend code changes.
-
-5\. Report what was tested and any remaining issues.
-
-
-
-\## Git
-
-
-
-\- Do not create commits unless explicitly requested.
-
-\- Do not reset, revert, or delete user changes without permission.
-
-\- Do not modify unrelated files.
-
-\- Before a potentially destructive operation, explain what will happen and ask for confirmation.
-
-
-
-\## Important
-
-
-
-When uncertain:
-
-
-
-1\. Inspect the existing implementation.
-
-2\. Explain the uncertainty.
-
-3\. Prefer the smallest safe change.
-
-4\. Do not invent project requirements.
-
+description: Use this skill when developing, reviewing, debugging, testing, refactoring, or designing features for the Interview Assist Agent project. Follows the project's exact architecture, conventions, and compliance rules.
+---
+
+# Interview Assist Agent - Development Skill
+
+## Non-Negotiable Hard Rules
+1. **HITL (Human-in-the-Loop)**: AI (Aggregation / Suggestion Agent) TUYỆT ĐỐI KHÔNG ghi vào `session_decision`. Chỉ role `council` mới được ghi quyết định tuyển dụng cuối cùng. Toàn bộ gợi ý AI chỉ mang tính tham vấn.
+2. **Privacy & Anonymity**:
+   - Interviewer chỉ có quyền xem/sửa note của chính mình.
+   - Note xuất ra cho Council phải ẩn danh với nhãn cố định (`Người phỏng vấn 1`, `Người phỏng vấn 2`,...).
+3. **Compliance Filter**: Mọi câu hỏi do LLM sinh ra bắt buộc phải đi qua `sensitive_filter.py` trước khi lưu vào DB hoặc hiển thị cho người dùng.
+4. **Stateless Backend**: Backend FastAPI hoàn toàn stateless; không lưu state trong in-memory tiến trình; chia sẻ cache, session, rate-limit qua Redis (`redis:6379`).
+5. **Security & Cyber Defense**:
+   - Chống IDOR: Mọi API đọc/ghi session, note, ứng viên phải kiểm tra tính sở hữu (`user_id == current_user.id`) hoặc quyền được gán, không tin cậy ID client gửi lên.
+   - Chống Injection: 100% validate qua Pydantic v2, truy vấn bằng SQLAlchemy ORM (cấm ghép chuỗi raw SQL), React escape output (cấm `dangerouslySetInnerHTML`).
+   - File Upload & MinIO: Bắt buộc kiểm tra Magic Bytes (File Signature), giới hạn file size, lưu MinIO với key ngẫu nhiên bằng UUID (chống Path Traversal), bucket private.
+   - LLM Security: Sanitize và phân tách delimiter rõ ràng với dữ liệu CV/audio phiên âm (chống Prompt Injection), không gửi PII nhạy cảm ra LLM bên ngoài, áp dụng token budget và timeout.
+   - Secrets & Network: Không hardcode credentials/API keys trong code/git; port 8000/db/redis/minio không expose ra host; rate-limit qua Redis trên các endpoint nhạy cảm.
+6. **Quality Gates**: Mọi thay đổi code bắt buộc chạy và pass `ruff check` + `pytest tests/` (backend) và `npm run build` (frontend).
+
+## Architecture & Code Conventions
+
+### Backend (FastAPI + Python 3.11)
+- **Folder structure**:
+  - `app/api`: Router endpoints, request parsing, HTTP status codes, dependency injection (`Depends(get_db)`, `Depends(get_current_user)`).
+  - `app/schemas`: Pydantic v2 schemas cho request, response và data validation.
+  - `app/models`: SQLAlchemy 2.0 ORM models.
+  - `app/services`: Pure business logic, orchestration giữa models, repositories và external clients.
+  - `app/core`: Configuration (`pydantic-settings`), security (JWT SHA-256 hash + token rotation), database session.
+  - `app/agents`: LLM prompts, agent pipelines, sensitive filters.
+- **Conventions**:
+  - Naming: `snake_case` cho functions, variables, modules. `PascalCase` cho classes và Pydantic models.
+  - Strict type hints cho mọi hàm và tham số.
+  - Tự động hóa database migration qua Alembic (`alembic revision --autogenerate -m "..."`).
+  - Refresh token phải hash SHA-256 kèm cơ chế rotation.
+  - Không bao giờ bind trực tiếp host port 8000 của backend trong docker-compose; mọi request từ frontend đi qua Traefik port 80.
+
+### Frontend (React + TypeScript + Vite)
+- **Conventions**:
+  - Naming: `camelCase` cho functions và variables, `PascalCase` cho React components.
+  - TypeScript strict typing (không dùng `any`).
+  - Giao diện phân chia rõ ràng theo 3 vai trò:
+    - **HR**: Quản lý chiến dịch phỏng vấn, hồ sơ ứng viên, upload CV.
+    - **Interviewer**: Buổi phỏng vấn trực tiếp, ghi chú cá nhân, xem gợi ý câu hỏi từ AI.
+    - **Council**: Xem đánh giá ẩn danh của các interviewer, tổng hợp đề xuất AI, đưa ra quyết định tuyển dụng cuối cùng.
+  - Xử lý đầy đủ loading, error, empty states cho từng component.
+
+### Database & Storage
+- **PostgreSQL 16**: Lưu trữ quan hệ chính (users, sessions, notes, decisions). Thiết lập index cho các trường truy vấn thường xuyên.
+- **Redis 7**: Cache, rate limiting, token blacklist / session validation.
+- **MinIO**: S3-compatible lưu trữ file CV (PDF, DOCX).
+
+## Testing & Verification Workflow
+Trước khi hoàn tất bất kỳ thay đổi nào:
+1. Chạy lint backend: `ruff check .` (sửa triệt để mọi cảnh báo).
+2. Chạy test backend: `pytest tests/` (đảm bảo pass 100%).
+3. Chạy build frontend: `npm run build` (trong thư mục `frontend/`, đảm bảo không lỗi TypeScript).
+4. Giữ nguyên docstrings, comments giải thích kiến trúc và type annotations.
+
+## Lessons Learned Checklist
+- [x] Không bind trực tiếp host port vào service backend khi hỗ trợ scale ngang với Traefik.
+- [x] Luôn trỏ `REDIS_URL` tới container `redis:6379` thay vì `localhost` trong môi trường Docker.

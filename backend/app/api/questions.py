@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import require_role
 from app.core.db import get_db
+from app.core.rate_limit import RateLimiter
 from app.models.competency import CompetencyFramework
 from app.models.job import Job
 from app.models.llm_usage_log import LlmUsageLog
@@ -15,9 +16,14 @@ from app.services.question_gen import QuestionGenError, generate_question_for_cr
 from app.services.sensitive_filter import check_sensitive_content
 
 router = APIRouter(tags=["questions"])
+questions_limiter = RateLimiter(scope="questions", key_type="user")
 
 
-@router.post("/jobs/{job_id}/questions/generate", response_model=list[QuestionResponse])
+@router.post(
+    "/jobs/{job_id}/questions/generate",
+    response_model=list[QuestionResponse],
+    dependencies=[Depends(questions_limiter)],
+)
 def generate_questions(
     job_id: uuid.UUID,
     db: Session = Depends(get_db),
