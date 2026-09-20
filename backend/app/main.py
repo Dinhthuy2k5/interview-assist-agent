@@ -13,6 +13,7 @@ from app.api.questions import router as questions_router
 from app.api.sessions import router as sessions_router
 from app.api.transcripts import router as transcripts_router
 from app.api.users import router as users_router
+from app.core.config import settings
 
 app = FastAPI(
     title="Interview Assist Agent API",
@@ -20,13 +21,17 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# ALLOWED_ORIGINS đọc từ biến môi trường (xem .env / .env.example).
+# Mặc định: http://localhost:5173 (dev). Production: set ALLOWED_ORIGINS trong .env
+# VD: ALLOWED_ORIGINS=https://ngdinhthuy.duckdns.org
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 app.include_router(competency_router)
 app.include_router(jobs_router)

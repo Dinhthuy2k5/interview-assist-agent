@@ -29,3 +29,6 @@ build/
 
 # Alembic (giữ script, bỏ cache)
 backend/alembic/__pycache__/
+
+# Traefik SSL certificate storage - chứa private key, KHÔNG commit lên git
+acme.json

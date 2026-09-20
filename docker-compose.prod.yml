@@ -1,0 +1,66 @@
+# docker-compose.prod.yml - Production overrides cho ngdinhthuy.duckdns.org
+#
+# Cách dùng:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --scale backend=3
+#
+# File này KHÔNG thay thế docker-compose.yml - chỉ ghi đè (override) các phần
+# cần thiết để chạy production (HTTPS, Let's Encrypt, domain DuckDNS).
+# Nguyên tắc: docker-compose.yml = "chạy được ở bất cứ đâu",
+#             docker-compose.prod.yml = "cấu hình riêng cho VPS Oracle Cloud".
+
+services:
+  minio:
+    # Dùng mirror quay.io thay vì docker.io/minio để tránh rate-limit trên VPS.
+    # Healthcheck dùng mc (MinIO Client) thay vì curl (không có sẵn trong image mới).
+    image: quay.io/minio/minio:latest
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  traefik:
+    image: traefik:v3
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      # Entrypoint HTTP (80) → redirect toàn bộ sang HTTPS (443)
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.websecure.address=:443"
+      # Let's Encrypt TLS challenge - tự động xin & gia hạn SSL certificate
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.email=ngdinhthuy2k5@gmail.com"
+      - "--certificatesresolvers.myresolver.acme.storage=/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # acme.json lưu SSL certificate - phải tạo trước với chmod 600 (xem README)
+      - ./acme.json:/acme.json
+
+  backend:
+    labels:
+      - "traefik.enable=true"
+      # Chỉ nhận HTTPS, routing theo Host + các path prefix API
+      - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.routers.backend.rule=Host(`ngdinhthuy.duckdns.org`) && (PathPrefix(`/docs`) || PathPrefix(`/openapi.json`) || PathPrefix(`/health`) || PathPrefix(`/auth`) || PathPrefix(`/jobs`) || PathPrefix(`/questions`) || PathPrefix(`/sessions`) || PathPrefix(`/transcripts`) || PathPrefix(`/aggregation`) || PathPrefix(`/audit`) || PathPrefix(`/decisions`) || PathPrefix(`/competencies`) || PathPrefix(`/users`) || PathPrefix(`/frameworks`))"
+      - "traefik.http.routers.backend.tls=true"
+      - "traefik.http.routers.backend.tls.certresolver=myresolver"
+      # Priority cao hơn frontend để API path không bị frontend router "nuốt"
+      - "traefik.http.routers.backend.priority=10"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+
+  frontend:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.rule=Host(`ngdinhthuy.duckdns.org`)"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.routers.frontend.tls.certresolver=myresolver"
+      # Priority thấp hơn backend - chỉ match khi không có path API nào khớp
+      - "traefik.http.routers.frontend.priority=1"
+      - "traefik.http.services.frontend.loadbalancer.server.port=5173"

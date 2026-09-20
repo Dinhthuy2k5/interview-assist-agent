@@ -4,7 +4,10 @@ import groq
 from app.core.config import settings
 
 ANTHROPIC_MODEL = "claude-sonnet-4-5"
-GROQ_MODEL = "llama-3.3-70b-versatile"
+# GROQ_MODEL đọc từ biến môi trường GROQ_MODEL (xem .env / .env.example).
+# Mặc định: llama-3.3-70b-versatile. Đổi model không cần sửa code, chỉ cần
+# cập nhật .env trên server rồi restart container backend.
+GROQ_MODEL = settings.groq_model
 
 # Đơn giá tham khảo (USD / 1M token) - chỉ để ước tính cost_estimate ghi log, KHÔNG
 # phản ánh việc bị tính phí thật (Groq free tier hiện không tính phí theo token, chỉ

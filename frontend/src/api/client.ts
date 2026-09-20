@@ -1,9 +1,12 @@
 import { ApiError, parseApiErrorMessage } from "../utils/errors";
 
-// Trỏ qua Traefik (port 80, cửa ngõ duy nhất) thay vì thẳng 1 backend instance
-// cố định (":8000") - nếu giữ ":8000", frontend luôn gọi đúng 1 container, bỏ
-// qua hoàn toàn load balancer, --scale backend=3 sẽ vô nghĩa với frontend.
-export const API_BASE_URL = "http://localhost";
+// API_BASE_URL để rỗng = dùng URL tương đối (relative).
+// - Dev local: Vite dev server proxy /api/* → localhost:8000 (nếu cần cấu hình proxy).
+//   Hoặc đơn giản hơn: Traefik trên VPS và Vite đều serve cùng origin nên "" là đúng.
+// - Production: frontend và backend cùng nằm sau Traefik trên ngdinhthuy.duckdns.org
+//   → URL tương đối tự động trỏ đúng host, không cần hardcode domain hay IP.
+// ⚠ KHÔNG đặt lại "http://localhost:8000" - khi deploy sẽ bị CORS và sai host.
+export const API_BASE_URL = "";
 
 const ACCESS_TOKEN_KEY = "iaa_access_token";
 const REFRESH_TOKEN_KEY = "iaa_refresh_token";
