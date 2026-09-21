@@ -100,9 +100,11 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.backend.entrypoints=websecure"
-      - "traefik.http.routers.backend.rule=Host(`ngdinhthuy.duckdns.org`) && PathPrefix(`/`)"
+      - "traefik.http.routers.backend.rule=Host(`ngdinhthuy.duckdns.org`) && (PathPrefix(`/docs`) || PathPrefix(`/openapi.json`) || PathPrefix(`/health`) || PathPrefix(`/auth`) || PathPrefix(`/jobs`) || PathPrefix(`/questions`) || PathPrefix(`/sessions`) || PathPrefix(`/transcripts`) || PathPrefix(`/aggregation`) || PathPrefix(`/audit`) || PathPrefix(`/decisions`) || PathPrefix(`/competencies`) || PathPrefix(`/users`) || PathPrefix(`/frameworks`))"
       - "traefik.http.routers.backend.tls=true"
       - "traefik.http.routers.backend.tls.certresolver=myresolver"
+      # Priority cao hơn frontend để API path không bị frontend router "nuốt"
+      - "traefik.http.routers.backend.priority=10"
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
       # Active health check - Traefik tự gọi GET /health định kỳ, loại instance
       # không trả 200 ra khỏi vòng round-robin, tự thêm lại khi sống lại.
