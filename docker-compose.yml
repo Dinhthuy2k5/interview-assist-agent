@@ -100,7 +100,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.backend.entrypoints=websecure"
-      - "traefik.http.routers.backend.rule=Host(`ngdinhthuy.duckdns.org`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.rule=Host(`ngdinhthuy.duckdns.org`) && PathPrefix(`/`)"
       - "traefik.http.routers.backend.tls=true"
       - "traefik.http.routers.backend.tls.certresolver=myresolver"
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
