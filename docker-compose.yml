@@ -100,7 +100,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.backend.entrypoints=websecure"
-      - "traefik.http.routers.backend.rule=Host(`ngdinhthuy.duckdns.org`) && PathPrefix(`/`)"
+      - "traefik.http.routers.backend.rule=Host(`ngdinhthuy.duckdns.org`) && PathPrefix(`/api`)"
       - "traefik.http.routers.backend.tls=true"
       - "traefik.http.routers.backend.tls.certresolver=myresolver"
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
@@ -124,6 +124,15 @@ services:
       context: ./frontend
     container_name: iaa-frontend
     restart: unless-stopped
+    labels:
+      # ← THÊM CẢ BLOCK NÀY
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.rule=Host(`ngdinhthuy.duckdns.org`)"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.routers.frontend.tls.certresolver=myresolver"
+      - "traefik.http.services.frontend.loadbalancer.server.port=5173"
+      - "traefik.docker.network=iaa_default"
     ports:
       - "5173:5173"
     volumes:
