@@ -49,7 +49,7 @@ services:
       retries: 5
 
   traefik:
-    image: traefik:v3.5
+    image: traefik:v3.6.1
     container_name: iaa-traefik
     restart: unless-stopped
     command:
@@ -67,7 +67,7 @@ services:
       - "--api.dashboard=true"
       - "--api.insecure=true"
       - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-      - "--certificatesresolvers.myresolver.acme.email=your-email@example.com"
+      - "--certificatesresolvers.myresolver.acme.email=ngdinhthuy2k5@example.com"
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
     ports:
       - "80:80" # Cửa ngõ duy nhất vào backend từ giờ
