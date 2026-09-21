@@ -57,15 +57,22 @@ services:
       # tĩnh liệt kê từng backend, tự phát hiện container mới khi --scale.
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=iaa_default"
       - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
       # Dashboard để xem trực quan instance nào healthy - hữu ích lúc học.
       - "--api.dashboard=true"
       - "--api.insecure=true"
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.email=your-email@example.com"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
     ports:
       - "80:80" # Cửa ngõ duy nhất vào backend từ giờ
+      - "443:443"
       - "8080:8080" # Dashboard - http://localhost:8080/dashboard/
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./letsencrypt:/letsencrypt
     depends_on:
       - backend
 
@@ -89,8 +96,10 @@ services:
       REDIS_URL: redis://redis:6379/0
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.entrypoints=web"
-      - "traefik.http.routers.backend.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.routers.backend.rule=Host(`ngdinhthuy.duckdns.org`) && PathPrefix(`/`)"
+      - "traefik.http.routers.backend.tls=true"
+      - "traefik.http.routers.backend.tls.certresolver=myresolver"
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
       # Active health check - Traefik tự gọi GET /health định kỳ, loại instance
       # không trả 200 ra khỏi vòng round-robin, tự thêm lại khi sống lại.
